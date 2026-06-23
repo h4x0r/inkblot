@@ -17,15 +17,18 @@ describe("gaussianSmooth", () => {
   });
 
   it("spreads a single spike symmetrically and keeps its peak centered", () => {
-    const out = gaussianSmooth([0, 0, 1, 0, 0], 1);
+    // interior spike (length 21, spike at 10) so edge truncation is negligible
+    const v = new Array<number>(21).fill(0);
+    v[10] = 1;
+    const out = gaussianSmooth(v, 1);
     // peak stays at the center index
-    expect(out.indexOf(Math.max(...out))).toBe(2);
+    expect(out.indexOf(Math.max(...out))).toBe(10);
     // symmetric about the center
-    expect(out[1]).toBeCloseTo(out[3], 10);
-    expect(out[0]).toBeCloseTo(out[4], 10);
-    // a normalized kernel roughly preserves total mass
+    expect(out[9]).toBeCloseTo(out[11], 10);
+    expect(out[8]).toBeCloseTo(out[12], 10);
+    // away from edges a normalized kernel preserves total mass
     const mass = out.reduce((a, b) => a + b, 0);
-    expect(mass).toBeCloseTo(1, 2);
+    expect(mass).toBeCloseTo(1, 6);
   });
 });
 
