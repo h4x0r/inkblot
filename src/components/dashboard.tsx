@@ -2,7 +2,7 @@
 
 import type { User } from "next-auth";
 import { Download, Loader2, LogOut } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { doSignOut } from "@/app/actions";
 import { LinkedInMark, XMark } from "@/components/brand-icons";
@@ -32,12 +32,9 @@ interface ActivityData {
 // busiest repos covering ~90% of commits (capped) so it reads cleanly, and let
 // them add more from the repo picker.
 
-const fmtDate = (ms: number) =>
-  new Date(ms).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+// datetime-local <-> epoch ms in UTC wall-clock, matching the chart's UTC bins
+const msToInput = (ms: number) => new Date(ms).toISOString().slice(0, 16);
+const inputToMs = (v: string) => new Date(`${v}Z`).getTime();
 
 export function Dashboard({ user }: { user: User }) {
   const [data, setData] = useState<ActivityData | null>(null);
@@ -200,13 +197,6 @@ export function Dashboard({ user }: { user: User }) {
     [imgUrl, data],
   );
 
-  const rangeLabel = useMemo(() => {
-    if (!data || data.empty) return "";
-    return `${fmtDate(data.start + range[0] * stepMs)} → ${fmtDate(
-      data.start + range[1] * stepMs,
-    )}`;
-  }, [data, range, stepMs]);
-
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b px-6 py-3">
@@ -254,9 +244,42 @@ export function Dashboard({ user }: { user: User }) {
                 onAll={selectAll}
                 onNone={selectNone}
               />
-              <div className="flex min-w-[260px] flex-1 flex-col gap-1">
-                <div className="text-muted-foreground flex justify-between font-mono text-xs">
-                  <span>{rangeLabel}</span>
+              <div className="flex min-w-[280px] flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                  <input
+                    type="datetime-local"
+                    aria-label="From"
+                    className="border-input bg-background text-foreground rounded-md border px-2 py-1 [color-scheme:dark]"
+                    min={msToInput(data.start)}
+                    max={msToInput(data.start + (data.hours - 1) * stepMs)}
+                    value={msToInput(data.start + range[0] * stepMs)}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const idx = Math.round(
+                        (inputToMs(e.target.value) - data.start) / stepMs,
+                      );
+                      setRange([Math.max(0, Math.min(idx, range[1] - 1)), range[1]]);
+                    }}
+                  />
+                  <span className="text-muted-foreground">→</span>
+                  <input
+                    type="datetime-local"
+                    aria-label="To"
+                    className="border-input bg-background text-foreground rounded-md border px-2 py-1 [color-scheme:dark]"
+                    min={msToInput(data.start)}
+                    max={msToInput(data.start + (data.hours - 1) * stepMs)}
+                    value={msToInput(data.start + range[1] * stepMs)}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const idx = Math.round(
+                        (inputToMs(e.target.value) - data.start) / stepMs,
+                      );
+                      setRange([
+                        range[0],
+                        Math.min(data.hours - 1, Math.max(idx, range[0] + 1)),
+                      ]);
+                    }}
+                  />
                   {busy && (
                     <span className="text-primary inline-flex items-center gap-1">
                       <Loader2 className="size-3 animate-spin" /> rendering
