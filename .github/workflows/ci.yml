@@ -41,6 +41,28 @@ jobs:
           AUTH_GITHUB_ID: ci-placeholder
           AUTH_GITHUB_SECRET: ci-placeholder
 
+  e2e:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run e2e journeys (mocked API)
+        run: pnpm e2e
+        env:
+          AUTH_SECRET: ci-e2e-placeholder-secret-value-1234567890
+          AUTH_GITHUB_ID: ci-placeholder
+          AUTH_GITHUB_SECRET: ci-placeholder
+
   python:
     name: python (ruff · pytest · hypothesis fuzz)
     runs-on: ubuntu-latest
