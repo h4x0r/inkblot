@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { repoLabel } from "./github";
+import { isValidGitHubUsername, repoLabel } from "./github";
+
+describe("isValidGitHubUsername", () => {
+  it("accepts valid GitHub usernames", () => {
+    for (const u of ["torvalds", "h4x0r", "a", "a-b", "gaearon", "x".repeat(39)]) {
+      expect(isValidGitHubUsername(u)).toBe(true);
+    }
+  });
+
+  it("rejects invalid usernames", () => {
+    for (const u of [
+      "",
+      "-bad",
+      "bad-",
+      "a--b", // consecutive hyphens
+      "x".repeat(40), // too long
+      "has space",
+      "has/slash",
+      "under_score",
+      "..",
+    ]) {
+      expect(isValidGitHubUsername(u)).toBe(false);
+    }
+  });
+});
 
 describe("repoLabel", () => {
   it("strips the owner when it is the viewer", () => {
