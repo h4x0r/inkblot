@@ -1,0 +1,6 @@
+# Dev/test deps for the Python renderer (not bundled into the Vercel function).
+-r requirements.txt
+hypothesis>=6.130
+pytest>=8.3
+pytest-cov>=5.0
+ruff>=0.6
