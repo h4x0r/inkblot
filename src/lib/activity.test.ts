@@ -1,13 +1,59 @@
 import { describe, expect, it } from "vitest";
 import {
   binCommitsHourly,
+  decodeRepoMask,
   defaultRepoSelection,
   detectOnsetWindow,
+  encodeRepoMask,
   findOnsetIndex,
   gaussianSmooth,
   HOUR_MS,
+  parseChartParams,
   type CommitEvent,
 } from "./activity";
+
+describe("parseChartParams", () => {
+  const p = (s: string) => parseChartParams(new URLSearchParams(s));
+
+  it("parses epoch-ms and ISO from/to", () => {
+    expect(p("from=1700000000000&to=1700100000000")).toMatchObject({
+      from: 1700000000000,
+      to: 1700100000000,
+    });
+    const r = p("from=2026-03-01&to=2026-06-24T12:00");
+    expect(r.from).toBe(Date.parse("2026-03-01"));
+    expect(r.to).toBe(Date.parse("2026-06-24T12:00"));
+  });
+
+  it("passes through the raw repos mask, undefined when absent/empty", () => {
+    expect(p("repos=ab_3").reposMask).toBe("ab_3");
+    expect(p("").reposMask).toBeUndefined();
+    expect(p("repos=").reposMask).toBeUndefined();
+    expect(p("from=notadate").from).toBeUndefined();
+  });
+});
+
+describe("repo bitmask codec", () => {
+  // canonical universe must be name-sorted by both encode and decode
+  const all = ["alpha", "beta", "delta", "gamma", "omega", "zeta"].sort();
+
+  it("round-trips an arbitrary selection", () => {
+    const sel = ["alpha", "gamma", "zeta"];
+    const mask = encodeRepoMask(all, sel);
+    expect(decodeRepoMask(all, mask).sort()).toEqual([...sel].sort());
+  });
+
+  it("stays compact for large lists", () => {
+    const big = Array.from({ length: 130 }, (_, i) => `r${i}`).sort();
+    const mask = encodeRepoMask(big, big); // select all
+    expect(mask.length).toBeLessThan(30);
+    expect(decodeRepoMask(big, mask).sort()).toEqual([...big].sort());
+  });
+
+  it("handles empty selection", () => {
+    expect(decodeRepoMask(all, encodeRepoMask(all, []))).toEqual([]);
+  });
+});
 
 describe("gaussianSmooth", () => {
   it("returns a copy unchanged when sigma is 0 (identity)", () => {
