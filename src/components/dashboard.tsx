@@ -111,6 +111,7 @@ export function Dashboard({ user }: { user: User }) {
           subtitle: data.persona
             ? `${data.persona.persona} · ${data.persona.superlative}`
             : undefined,
+          avatar_url: data.viewer.avatarUrl ?? undefined,
         }),
         signal: ctrl.signal,
       });

@@ -16,7 +16,9 @@ from __future__ import annotations
 import datetime as dt
 import io
 import os
+import urllib.request
 from typing import Any
+from urllib.parse import urlparse
 
 import matplotlib
 
@@ -25,6 +27,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
+from PIL import Image, ImageDraw
 
 HOUR_MS = 3_600_000
 
@@ -52,6 +55,46 @@ CREDIT_NAME = 'Albert Hui "4n6h4x0r"'
 # stays pointed at the app so viewers can plot their own.
 CREDIT_LINK = "https://www.linkedin.com/in/alberthui"
 CREDIT_URL = "https://www.linkedin.com/in/alberthui"
+
+
+def _allowed_avatar_host(url: str) -> bool:
+    """Only fetch avatars from GitHub. /api/render is public, so an arbitrary
+    avatar_url would be an SSRF vector — restrict scheme + host."""
+    try:
+        p = urlparse(url)
+    except (ValueError, TypeError):
+        return False
+    if p.scheme not in ("http", "https"):
+        return False
+    host = (p.hostname or "").lower()
+    return host == "github.com" or host.endswith(".githubusercontent.com")
+
+
+def _draw_avatar(fig, url: str | None) -> None:
+    """Top-left circular GitHub avatar so a shared chart is unmistakably the
+    developer's. Decorative — any failure (bad host, fetch error, bad image)
+    silently skips rather than breaking the chart."""
+    if not url or not _allowed_avatar_host(url):
+        return
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "inkblot"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            raw = resp.read(2_000_000)
+        im = Image.open(io.BytesIO(raw)).convert("RGBA")
+        side = min(im.size)
+        left = (im.width - side) // 2
+        top = (im.height - side) // 2
+        im = im.crop((left, top, left + side, top + side)).resize(
+            (180, 180), Image.LANCZOS
+        )
+        mask = Image.new("L", (180, 180), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, 179, 179), fill=255)
+        im.putalpha(mask)
+        ax = fig.add_axes((0.028, 0.905, 0.062, 0.085), zorder=11)
+        ax.imshow(np.asarray(im), interpolation="antialiased")
+        ax.axis("off")
+    except Exception:  # avatar is decorative; never let it break the render
+        pass
 
 
 def _draw_credit(fig) -> None:
@@ -330,6 +373,7 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
     # hugging the edge. Bottom band reserved for the credit.
     fig.subplots_adjust(left=0.055, right=0.86, top=0.90, bottom=0.14)
     _draw_credit(fig)
+    _draw_avatar(fig, payload.get("avatar_url"))
 
     buf = io.BytesIO()
     out_fmt = "svg" if fmt == "svg" else "png"
