@@ -35,6 +35,8 @@ export interface FetchResult {
   truncated: boolean;
   /** Lookback window actually used, in days. */
   sinceDays: number;
+  /** Labels of repos that are private (so the UI can warn before sharing). */
+  privateRepos: string[];
 }
 
 const PER_PAGE = 100;
@@ -81,6 +83,7 @@ export async function fetchCommitEvents(
   let truncated = active.length > maxRepos;
 
   const events: CommitEvent[] = [];
+  const privateRepos = new Set<string>();
   let cursor = 0;
 
   const worker = async () => {
@@ -88,6 +91,8 @@ export async function fetchCommitEvents(
       const r = repos[cursor++];
       const owner = r.owner?.login;
       if (!owner) continue;
+      const label = repoLabel(r.full_name, login);
+      if (r.private) privateRepos.add(label);
       try {
         for (let page = 1; page <= MAX_PAGES_PER_REPO; page++) {
           const { data } = await octo.rest.repos.listCommits({
@@ -103,7 +108,7 @@ export async function fetchCommitEvents(
             if (!dateStr) continue;
             const ts = Date.parse(dateStr);
             if (!Number.isNaN(ts)) {
-              events.push({ repo: repoLabel(r.full_name, login), ts });
+              events.push({ repo: label, ts });
             }
           }
           if (data.length < PER_PAGE) break; // last page for this repo
@@ -116,7 +121,12 @@ export async function fetchCommitEvents(
 
   await Promise.all(Array.from({ length: concurrency }, worker));
   if (events.length >= maxCommits) truncated = true;
-  return { events: events.slice(0, maxCommits), truncated, sinceDays };
+  return {
+    events: events.slice(0, maxCommits),
+    truncated,
+    sinceDays,
+    privateRepos: [...privateRepos],
+  };
 }
 
 export function repoLabel(fullName: string, login: string): string {

@@ -13,10 +13,13 @@ export async function GET() {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let viewer, events, truncated, sinceDays;
+  let viewer, events, truncated, sinceDays, privateRepos;
   try {
     viewer = await getViewer(token);
-    ({ events, truncated, sinceDays } = await fetchCommitEvents(token, viewer.login));
+    ({ events, truncated, sinceDays, privateRepos } = await fetchCommitEvents(
+      token,
+      viewer.login,
+    ));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("activity: github fetch failed:", message);
@@ -43,9 +46,10 @@ export async function GET() {
 
   const s = binCommitsHourly(events);
   const w = detectOnsetWindow(s);
+  const privateSet = new Set(privateRepos);
   const repos = Object.entries(s.totals)
     .sort((a, b) => b[1] - a[1])
-    .map(([name, total]) => ({ name, total }));
+    .map(([name, total]) => ({ name, total, private: privateSet.has(name) }));
 
   return Response.json({
     viewer,

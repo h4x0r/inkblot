@@ -160,6 +160,19 @@ export function Dashboard({ user }: { user: User }) {
   const share = useCallback(
     async (platform: "x" | "linkedin") => {
       if (!imgUrl || !data) return;
+      const privCount = data.repos.filter(
+        (r) => r.private && selected.has(r.name),
+      ).length;
+      if (
+        privCount > 0 &&
+        !window.confirm(
+          `This chart includes ${privCount} private repo name${
+            privCount > 1 ? "s" : ""
+          }. Sharing publishes them on a public image. Continue?`,
+        )
+      ) {
+        return;
+      }
       const win = window.open("", "_blank");
       setSharing(platform);
       try {
@@ -194,8 +207,12 @@ export function Dashboard({ user }: { user: User }) {
         setSharing(null);
       }
     },
-    [imgUrl, data],
+    [imgUrl, data, selected],
   );
+
+  const selectedPrivate = data
+    ? data.repos.filter((r) => r.private && selected.has(r.name)).length
+    : 0;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -351,6 +368,13 @@ export function Dashboard({ user }: { user: User }) {
               {data.truncated && " · capped for speed"}
               {" · Share publishes this chart to a public, unguessable link"}
             </p>
+            {selectedPrivate > 0 && (
+              <p className="text-xs font-medium text-amber-500/90">
+                ⚠ {selectedPrivate} private repo{selectedPrivate > 1 ? "s" : ""}{" "}
+                selected — their names appear in the chart, and sharing publishes
+                them on a public image.
+              </p>
+            )}
 
             <Card className="overflow-hidden border bg-[#0d1117] p-0">
               <div className="relative aspect-[2/1] w-full">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Lock } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 export interface RepoInfo {
   name: string;
   total: number;
+  private?: boolean;
 }
 
 interface RepoPickerProps {
@@ -106,6 +107,9 @@ export function RepoPicker({
                         )}
                       />
                       <span className="truncate">{repo.name}</span>
+                      {repo.private && (
+                        <Lock className="text-muted-foreground size-3 shrink-0" />
+                      )}
                     </span>
                     <Badge
                       variant="secondary"
