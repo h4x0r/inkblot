@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOUR_MS } from "./activity";
+import { encodeRepoMask, HOUR_MS } from "./activity";
 import {
   buildRenderPayload,
   buildShareParams,
@@ -68,7 +68,7 @@ describe("seedView (client mount from URL params)", () => {
     // default selection is busiest-first covering 90% -> alpha alone (300/420=71%? no) -> alpha+beta
     expect(selected.sort()).toEqual(["alpha", "beta"]);
   });
-  it("decodes a repos mask and a from/to window", () => {
+  it("uses default selection but explicit from/to when only the window is set", () => {
     const d = view();
     const { selected, range } = seedView(d, {
       from: 10 * HOUR_MS,
@@ -77,6 +77,13 @@ describe("seedView (client mount from URL params)", () => {
     });
     expect(range).toEqual([10, 20]);
     expect(selected.length).toBeGreaterThan(0);
+  });
+
+  it("seeds the selection from a repos mask when present", () => {
+    const d = view();
+    const mask = encodeRepoMask(sortedRepoNames(d), ["alpha"]);
+    const { selected } = seedView(d, { reposMask: mask });
+    expect(selected).toEqual(["alpha"]);
   });
 });
 

@@ -9,7 +9,15 @@ export default defineConfig({
       // Gate the pure, fully-testable core at 100% (the fleet "100% on the
       // testable lib" standard). github.ts's network fetch is validated live,
       // not unit-covered; UI/route glue is the irreducible Humble-Object shell.
-      include: ["src/lib/activity.ts"],
+      include: [
+        "src/lib/activity.ts",
+        "src/lib/activity-response.ts",
+        "src/lib/inkblot-view.ts",
+        "src/lib/persona.ts",
+        "src/lib/share.ts",
+        "src/lib/audit.ts",
+        "src/lib/utils.ts",
+      ],
       thresholds: {
         statements: 100,
         branches: 100,

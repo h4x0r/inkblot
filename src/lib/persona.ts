@@ -22,6 +22,12 @@ interface PersonaInput {
   total: number[];
 }
 
+// `d` is always `sum`, which is > 0 at every call site (each pct() call is past
+// the `sum === 0` early return below). The 0-fallback is a defensive guard kept
+// so a future caller can't divide by zero — provably unreachable today, so its
+// branch is exempted from the coverage gate rather than removed (defense-in-depth
+// over coverage purism).
+/* v8 ignore next */
 const pct = (n: number, d: number) => (d > 0 ? Math.round((100 * n) / d) : 0);
 
 export function classifyPersona({ start, stepHours, total }: PersonaInput): Persona {

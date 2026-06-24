@@ -35,4 +35,21 @@ describe("share token codec", () => {
     const out = decodeShare(token);
     expect(out?.t.length).toBeLessThanOrEqual(200);
   });
+
+  const tok = (v: unknown) =>
+    Buffer.from(JSON.stringify(v)).toString("base64url");
+
+  it("rejects a token that decodes to null or a non-object", () => {
+    expect(decodeShare(Buffer.from("null").toString("base64url"))).toBeNull();
+    expect(decodeShare(tok(42))).toBeNull();
+  });
+
+  it("rejects a token missing u or t, or with non-string fields", () => {
+    expect(decodeShare(tok({ u: BLOB }))).toBeNull(); // t missing
+    expect(decodeShare(tok({ u: BLOB, t: 5 }))).toBeNull(); // t not a string
+  });
+
+  it("rejects a u that is not a parseable URL", () => {
+    expect(decodeShare(tok({ u: "not a url", t: "x" }))).toBeNull();
+  });
 });

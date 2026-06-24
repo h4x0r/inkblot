@@ -53,6 +53,31 @@ describe("repo bitmask codec", () => {
   it("handles empty selection", () => {
     expect(decodeRepoMask(all, encodeRepoMask(all, []))).toEqual([]);
   });
+
+  it("round-trips across every byte-length remainder", () => {
+    const universe = (n: number) =>
+      Array.from({ length: n }, (_, i) => `r${String(i).padStart(2, "0")}`).sort();
+    // 6 repos -> 1 byte -> 2-char mask (encode rem 1 / decode rem 2)
+    const u6 = universe(6);
+    expect(decodeRepoMask(u6, encodeRepoMask(u6, ["r02", "r05"])).sort()).toEqual([
+      "r02",
+      "r05",
+    ]);
+    // 9 repos -> 2 bytes -> 3-char mask (encode rem 2 / decode rem 3)
+    const u9 = universe(9);
+    expect(decodeRepoMask(u9, encodeRepoMask(u9, ["r00", "r08"])).sort()).toEqual([
+      "r00",
+      "r08",
+    ]);
+    // 24 repos -> 3 bytes -> 4-char mask (full quartet, rem 0)
+    const u24 = universe(24);
+    expect(decodeRepoMask(u24, encodeRepoMask(u24, u24)).sort()).toEqual(u24);
+  });
+
+  it("treats a mask shorter than the universe as all-unset (no out-of-range)", () => {
+    const big = Array.from({ length: 24 }, (_, i) => `r${i}`).sort();
+    expect(decodeRepoMask(big, "A")).toEqual([]);
+  });
 });
 
 describe("gaussianSmooth", () => {
