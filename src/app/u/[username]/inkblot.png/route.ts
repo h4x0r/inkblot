@@ -1,13 +1,8 @@
-import {
-  binCommitsHourly,
-  decodeRepoMask,
-  defaultRepoSelection,
-  detectOnsetWindow,
-  parseChartParams,
-} from "@/lib/activity";
+import { parseChartParams } from "@/lib/activity";
+import { buildActivityResponse } from "@/lib/activity-response";
+import { resolveView } from "@/lib/inkblot-view";
 import { audit } from "@/lib/audit";
 import { fetchPublicActivity, isValidGitHubUsername } from "@/lib/github";
-import { classifyPersona } from "@/lib/persona";
 
 export const maxDuration = 60;
 
@@ -50,33 +45,30 @@ export async function GET(req: Request, { params }: Params) {
       avatar_url: act.viewer.avatarUrl ?? undefined,
     };
   } else {
-    const s = binCommitsHourly(act.events);
-    const w = detectOnsetWindow(s);
-    const total = new Array<number>(s.hours).fill(0);
-    for (const arr of Object.values(s.series)) {
-      for (let i = 0; i < s.hours; i++) total[i] += arr[i];
-    }
-    const persona = classifyPersona({ start: s.start, stepHours: s.stepHours, total });
-    personaName = persona.persona;
-
-    // URL state: from/to window + repo bitmask; default-select when omitted
-    const { from, to, reposMask } = parseChartParams(new URL(req.url).searchParams);
-    const sortedNames = Object.keys(s.totals).sort();
-    const selected = reposMask
-      ? decodeRepoMask(sortedNames, reposMask)
-      : defaultRepoSelection(
-          Object.entries(s.totals).map(([name, t]) => ({ name, total: t })),
-        );
-
+    // Same shaping as /api/u and /api/activity, then resolve the URL params to a
+    // selection + window with the same logic the explorer uses (one source).
+    const d = buildActivityResponse({
+      viewer: act.viewer,
+      events: act.events,
+      sinceDays: act.sinceDays,
+      truncated: act.truncated,
+    });
+    personaName = d.persona?.persona ?? "none";
+    const { selected, window } = resolveView(
+      d,
+      parseChartParams(new URL(req.url).searchParams),
+    );
     payload = {
-      start: s.start,
-      step_hours: s.stepHours,
-      series: s.series,
+      start: d.start,
+      step_hours: d.stepHours,
+      series: d.series,
       selected,
-      window: [from ?? w.from, to ?? w.to],
+      window,
       title: `${act.viewer.login}'s GitHub Activity History`,
-      subtitle: `${persona.persona} · ${persona.superlative}`,
-      persona_emoji: persona.emoji,
+      subtitle: d.persona
+        ? `${d.persona.persona} · ${d.persona.superlative}`
+        : undefined,
+      persona_emoji: d.persona?.emoji,
       avatar_url: act.viewer.avatarUrl ?? undefined,
     };
   }

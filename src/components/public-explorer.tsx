@@ -8,13 +8,12 @@ import { RepoPicker, type RepoInfo } from "@/components/repo-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { HOUR_MS, parseChartParams } from "@/lib/activity";
 import {
-  decodeRepoMask,
-  defaultRepoSelection,
-  encodeRepoMask,
-  HOUR_MS,
-  parseChartParams,
-} from "@/lib/activity";
+  buildRenderPayload,
+  buildShareParams,
+  seedView,
+} from "@/lib/inkblot-view";
 import { cn } from "@/lib/utils";
 
 interface Persona {
@@ -55,19 +54,6 @@ export function PublicExplorer({ username }: { username: string }) {
 
   const stepMs = (data?.stepHours ?? 1) * HOUR_MS;
 
-  // Name-sorted repo list — the canonical universe the bitmask is encoded over.
-  // MUST match the image route's `Object.keys(totals).sort()`.
-  const sortedNames = useMemo(
-    () => (data ? data.repos.map((r) => r.name).sort() : []),
-    [data],
-  );
-  const defaultWindow = useMemo(() => {
-    if (!data || data.empty) return [0, 0] as [number, number];
-    const f = Math.round((data.window.from - data.start) / stepMs);
-    const t = Math.round((data.window.to - data.start) / stepMs);
-    return [Math.max(0, f), Math.min(data.hours - 1, t)] as [number, number];
-  }, [data, stepMs]);
-
   // --- load public activity once, seed state from URL params ----------------
   useEffect(() => {
     const ctrl = new AbortController();
@@ -81,32 +67,12 @@ export function PublicExplorer({ username }: { username: string }) {
         const d: ActivityData = await res.json();
         setData(d);
         if (d.empty) return;
-
-        const sorted = d.repos.map((r) => r.name).sort();
-        const p = parseChartParams(new URLSearchParams(window.location.search));
-        setSelected(
-          new Set(
-            p.reposMask
-              ? decodeRepoMask(sorted, p.reposMask)
-              : defaultRepoSelection(d.repos),
-          ),
+        const seed = seedView(
+          d,
+          parseChartParams(new URLSearchParams(window.location.search)),
         );
-        const defFrom = Math.max(
-          0,
-          Math.round((d.window.from - d.start) / (d.stepHours * HOUR_MS)),
-        );
-        const defTo = Math.min(
-          d.hours - 1,
-          Math.round((d.window.to - d.start) / (d.stepHours * HOUR_MS)),
-        );
-        const idx = (ms: number) =>
-          Math.round((ms - d.start) / (d.stepHours * HOUR_MS));
-        const from = p.from !== undefined ? idx(p.from) : defFrom;
-        const to = p.to !== undefined ? idx(p.to) : defTo;
-        setRange([
-          Math.max(0, Math.min(from, d.hours - 1)),
-          Math.max(0, Math.min(to, d.hours - 1)),
-        ]);
+        setSelected(new Set(seed.selected));
+        setRange(seed.range);
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         setLoadError((err as Error).message);
@@ -116,18 +82,10 @@ export function PublicExplorer({ username }: { username: string }) {
   }, [username]);
 
   // --- derive the shareable URL params (omit-when-default) ------------------
-  const paramString = useMemo(() => {
-    if (!data || data.empty) return "";
-    const p = new URLSearchParams();
-    if (range[0] !== defaultWindow[0] || range[1] !== defaultWindow[1]) {
-      p.set("from", String(data.start + range[0] * stepMs));
-      p.set("to", String(data.start + range[1] * stepMs));
-    }
-    const mask = encodeRepoMask(sortedNames, selected);
-    const defMask = encodeRepoMask(sortedNames, defaultRepoSelection(data.repos));
-    if (mask !== defMask) p.set("repos", mask);
-    return p.toString();
-  }, [data, range, selected, sortedNames, defaultWindow, stepMs]);
+  const paramString = useMemo(
+    () => (data && !data.empty ? buildShareParams(data, selected, range) : ""),
+    [data, range, selected],
+  );
 
   // keep the address bar in sync so a copy/refresh reproduces the view
   useEffect(() => {
@@ -149,19 +107,16 @@ export function PublicExplorer({ username }: { username: string }) {
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          start: data.start,
-          step_hours: data.stepHours,
-          series: data.series,
-          selected: [...selected],
-          window: [data.start + range[0] * stepMs, data.start + range[1] * stepMs],
-          title: `${data.viewer.login}'s GitHub Activity History`,
-          subtitle: data.persona
-            ? `${data.persona.persona} · ${data.persona.superlative}`
-            : undefined,
-          persona_emoji: data.persona?.emoji,
-          avatar_url: data.viewer.avatarUrl ?? undefined,
-        }),
+        body: JSON.stringify(
+          buildRenderPayload(data, selected, range, {
+            title: `${data.viewer.login}'s GitHub Activity History`,
+            subtitle: data.persona
+              ? `${data.persona.persona} · ${data.persona.superlative}`
+              : undefined,
+            personaEmoji: data.persona?.emoji,
+            avatarUrl: data.viewer.avatarUrl ?? undefined,
+          }),
+        ),
         signal: ctrl.signal,
       });
       if (!res.ok) {
@@ -181,7 +136,7 @@ export function PublicExplorer({ username }: { username: string }) {
     } finally {
       setBusy(false);
     }
-  }, [data, selected, range, stepMs]);
+  }, [data, selected, range]);
 
   useEffect(() => {
     if (!data || data.empty) return;

@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { defaultRepoSelection, HOUR_MS } from "@/lib/activity";
+import { buildRenderPayload, defaultRange } from "@/lib/inkblot-view";
 import { cn } from "@/lib/utils";
 
 interface Persona {
@@ -71,15 +72,7 @@ export function Dashboard({ user }: { user: User }) {
         const d: ActivityData = await res.json();
         setData(d);
         setSelected(new Set(defaultRepoSelection(d.repos)));
-        if (!d.empty) {
-          const from = Math.round(
-            (d.window.from - d.start) / (d.stepHours * HOUR_MS),
-          );
-          const to = Math.round(
-            (d.window.to - d.start) / (d.stepHours * HOUR_MS),
-          );
-          setRange([Math.max(0, from), Math.min(d.hours - 1, to)]);
-        }
+        if (!d.empty) setRange(defaultRange(d));
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         setLoadError((err as Error).message);
@@ -96,24 +89,19 @@ export function Dashboard({ user }: { user: User }) {
     abortRef.current = ctrl;
     setBusy(true);
     try {
-      const from = data.start + range[0] * stepMs;
-      const to = data.start + range[1] * stepMs;
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          start: data.start,
-          step_hours: data.stepHours,
-          series: data.series,
-          selected: [...selected],
-          window: [from, to],
-          title: `${data.viewer.login}'s GitHub Activity History`,
-          subtitle: data.persona
-            ? `${data.persona.persona} · ${data.persona.superlative}`
-            : undefined,
-          persona_emoji: data.persona?.emoji,
-          avatar_url: data.viewer.avatarUrl ?? undefined,
-        }),
+        body: JSON.stringify(
+          buildRenderPayload(data, selected, range, {
+            title: `${data.viewer.login}'s GitHub Activity History`,
+            subtitle: data.persona
+              ? `${data.persona.persona} · ${data.persona.superlative}`
+              : undefined,
+            personaEmoji: data.persona?.emoji,
+            avatarUrl: data.viewer.avatarUrl ?? undefined,
+          }),
+        ),
         signal: ctrl.signal,
       });
       if (!res.ok) {
@@ -133,7 +121,7 @@ export function Dashboard({ user }: { user: User }) {
     } finally {
       setBusy(false);
     }
-  }, [data, selected, range, stepMs]);
+  }, [data, selected, range]);
 
   // debounce re-renders so dragging the slider feels smooth, not chattery
   useEffect(() => {
