@@ -48,7 +48,7 @@ export function Landing() {
         <div className="ring-border/60 bg-card/40 w-full overflow-hidden rounded-xl border shadow-2xl ring-1">
           <Image
             src="/sample-inkblot.png"
-            alt="Sample commit-activity inkblot"
+            alt="Sample commit-activity streamgraph"
             width={2240}
             height={1120}
             priority

@@ -14,7 +14,7 @@ We aim to acknowledge within 72 hours.
   renderer range-checks every size field before allocating (`MAX_REPOS`,
   `MAX_HOURS`, a `repos*hours` `MAX_POINTS` ceiling) and rejects malformed
   counts; the handler caps the request body at 16 MB. See `api/_inkblot.py`.
-- **No data at rest.** inkblot reads commit metadata (repo + timestamp) and
+- **No data at rest.** GitHub Activity Plotter reads commit metadata (repo + timestamp) and
   renders on the fly. There is no database; the GitHub OAuth token lives only in
   the encrypted session cookie.
 - **Scopes.** The GitHub OAuth grant requests `read:user` and `repo` (the latter

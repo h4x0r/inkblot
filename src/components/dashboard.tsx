@@ -96,7 +96,7 @@ export function Dashboard({ user }: { user: User }) {
           series: data.series,
           selected: [...selected],
           window: [from, to],
-          title: `${data.viewer.login} — github activity inkblot`,
+          title: `${data.viewer.login} — github activity`,
         }),
         signal: ctrl.signal,
       });
@@ -111,7 +111,7 @@ export function Dashboard({ user }: { user: User }) {
       setImgUrl(url);
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      toast.error("Couldn't render the inkblot", {
+      toast.error("Couldn't render the chart", {
         description: (err as Error).message,
       });
     } finally {
@@ -161,8 +161,7 @@ export function Dashboard({ user }: { user: User }) {
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b px-6 py-3">
         <span className="font-mono text-sm font-semibold tracking-tight">
-          inkblot
-          <span className="text-muted-foreground"> · github activity</span>
+          GitHub Activity Plotter
         </span>
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground hidden text-sm sm:inline">
@@ -229,7 +228,7 @@ export function Dashboard({ user }: { user: User }) {
               {imgUrl && (
                 <a
                   href={imgUrl}
-                  download="inkblot.png"
+                  download="github-activity.png"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "gap-2",
@@ -255,12 +254,12 @@ export function Dashboard({ user }: { user: User }) {
                   <img
                     key={imgUrl}
                     src={imgUrl}
-                    alt="Your commit-activity inkblot"
+                    alt="Your commit-activity streamgraph"
                     className="animate-in fade-in absolute inset-0 size-full object-contain duration-500"
                   />
                 ) : selected.size === 0 ? (
                   <div className="text-muted-foreground absolute inset-0 grid place-items-center text-sm">
-                    Pick at least one repo to bloom the inkblot.
+                    Pick at least one repo to bloom the chart.
                   </div>
                 ) : (
                   <div className="absolute inset-0 grid place-items-center">

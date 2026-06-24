@@ -1,10 +1,10 @@
-# inkblot — your GitHub activity, as art
+# GitHub Activity Plotter
 
 **Sign in with GitHub and watch your commit history bloom into a symmetric streamgraph.** A Rorschach inkblot of every late night you shipped — a small, frictionless pat on the back for the grind.
 
 ![Sample activity inkblot](public/sample-inkblot.png)
 
-The band thickness at any moment is your commits-per-hour; each repo is a colored ribbon, busiest one straddling the centerline. Toggle repos on and off and drag the time window — the inkblot re-blooms as you fiddle.
+The band thickness at any moment is your commits-per-hour; each repo is a colored ribbon, busiest one straddling the centerline. Toggle repos on and off and drag the time window — the chart re-blooms as you fiddle.
 
 ## Quickstart
 
@@ -14,7 +14,7 @@ cp .env.example .env.local     # then fill in the three values (see below)
 pnpm dlx vercel dev            # runs Next.js + the Python renderer together
 ```
 
-Open http://localhost:3000, click **Sign in with GitHub**, and your inkblot renders itself.
+Open http://localhost:3000, click **Sign in with GitHub**, and your chart renders itself.
 
 > Use `vercel dev` (not `next dev`) for local development: the chart is rendered by a Python serverless function, which only `vercel dev` serves locally. `next dev` runs everything _except_ the chart endpoint.
 
@@ -47,7 +47,7 @@ flowchart LR
 
 ## Privacy
 
-inkblot reads commit _metadata_ (repo name + timestamp) to draw the chart. It renders on the fly and **does not store your code or your commits** — there is no database. The GitHub token lives only in your encrypted session cookie.
+GitHub Activity Plotter reads commit _metadata_ (repo name + timestamp) to draw the chart. It renders on the fly and **does not store your code or your commits** — there is no database. The GitHub token lives only in your encrypted session cookie.
 
 ## Stack
 
