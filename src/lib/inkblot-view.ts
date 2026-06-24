@@ -136,7 +136,10 @@ export function buildRenderPayload(
     step_hours: d.stepHours,
     series: d.series,
     selected: [...selected],
-    window: [indexToMs(range[0], d.start, stepMs), indexToMs(range[1], d.start, stepMs)],
+    window: [
+      indexToMs(range[0], d.start, stepMs),
+      indexToMs(range[1], d.start, stepMs),
+    ],
     title: opts.title,
     subtitle: opts.subtitle,
     persona_emoji: opts.personaEmoji,

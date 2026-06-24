@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { decodeShare, encodeShare } from "./share";
 
-const BLOB = "https://abc123.public.blob.vercel-storage.com/charts/chart-xyz.png";
+const BLOB =
+  "https://abc123.public.blob.vercel-storage.com/charts/chart-xyz.png";
 
 describe("share token codec", () => {
   it("round-trips a valid blob URL + title", () => {
-    const token = encodeShare({ u: BLOB, t: "h4x0r's GitHub Activity History" });
+    const token = encodeShare({
+      u: BLOB,
+      t: "h4x0r's GitHub Activity History",
+    });
     expect(decodeShare(token)).toEqual({
       u: BLOB,
       t: "h4x0r's GitHub Activity History",

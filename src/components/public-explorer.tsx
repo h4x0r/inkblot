@@ -168,8 +168,7 @@ export function PublicExplorer({ username }: { username: string }) {
   );
   const selectNone = useCallback(() => setSelected(new Set()), []);
 
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const shareUrl = paramString
     ? `${origin}/u/${username}?${paramString}`
     : `${origin}/u/${username}`;
@@ -316,7 +315,10 @@ export function PublicExplorer({ username }: { username: string }) {
             href={xHref}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "gap-2",
+            )}
           >
             <XMark className="size-4" /> Share
           </a>
@@ -324,7 +326,10 @@ export function PublicExplorer({ username }: { username: string }) {
             href={liHref}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "gap-2",
+            )}
           >
             <LinkedInMark className="size-4" /> Share
           </a>
@@ -337,7 +342,12 @@ export function PublicExplorer({ username }: { username: string }) {
           {data.truncated && " · capped for speed"} · drag the handles or pick
           dates — the link updates so you can share this exact view
         </p>
-        <Button variant="outline" size="sm" className="gap-2" onClick={copyEmbed}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={copyEmbed}
+        >
           {copied ? (
             <Check className="size-4 text-emerald-500" />
           ) : (

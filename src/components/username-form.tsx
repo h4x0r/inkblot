@@ -25,19 +25,29 @@ export function UsernameForm({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <div className={compact ? "flex w-full max-w-xs gap-2" : "flex w-full max-w-sm gap-2"}>
+    <div
+      className={
+        compact ? "flex w-full max-w-xs gap-2" : "flex w-full max-w-sm gap-2"
+      }
+    >
       <Input
         value={handle}
         onChange={(e) => setHandle(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && go()}
-        placeholder={compact ? "check another username…" : "any GitHub username"}
+        placeholder={
+          compact ? "check another username…" : "any GitHub username"
+        }
         aria-label="GitHub username"
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
         className={compact ? "h-9" : "h-11 text-base"}
       />
-      <Button onClick={go} size={compact ? "default" : "lg"} className="shrink-0">
+      <Button
+        onClick={go}
+        size={compact ? "default" : "lg"}
+        className="shrink-0"
+      >
         {compact ? "Go →" : "Plot →"}
       </Button>
     </div>

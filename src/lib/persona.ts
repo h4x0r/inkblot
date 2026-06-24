@@ -30,7 +30,11 @@ interface PersonaInput {
 /* v8 ignore next */
 const pct = (n: number, d: number) => (d > 0 ? Math.round((100 * n) / d) : 0);
 
-export function classifyPersona({ start, stepHours, total }: PersonaInput): Persona {
+export function classifyPersona({
+  start,
+  stepHours,
+  total,
+}: PersonaInput): Persona {
   const stepMs = stepHours * HOUR_MS;
   const hourOfDay = new Array<number>(24).fill(0);
   const dayCount = new Map<number, number>();
@@ -51,7 +55,10 @@ export function classifyPersona({ start, stepHours, total }: PersonaInput): Pers
     const weekend = dow === 0 || dow === 6;
 
     hourOfDay[h] += c;
-    dayCount.set(Math.floor(t / DAY_MS), (dayCount.get(Math.floor(t / DAY_MS)) ?? 0) + c);
+    dayCount.set(
+      Math.floor(t / DAY_MS),
+      (dayCount.get(Math.floor(t / DAY_MS)) ?? 0) + c,
+    );
     if (weekend) weekendN += c;
     if (h >= 22 || h <= 4) nightN += c;
     else if (h >= 5 && h <= 8) dawnN += c;
@@ -59,7 +66,11 @@ export function classifyPersona({ start, stepHours, total }: PersonaInput): Pers
   }
 
   if (sum === 0) {
-    return { persona: "Blank Canvas", emoji: "🖊️", superlative: "no commits in this window yet" };
+    return {
+      persona: "Blank Canvas",
+      emoji: "🖊️",
+      superlative: "no commits in this window yet",
+    };
   }
 
   const busiestHour = hourOfDay.indexOf(Math.max(...hourOfDay));

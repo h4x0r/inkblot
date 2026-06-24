@@ -51,5 +51,8 @@ export async function POST(req: Request) {
   }
 
   const token = encodeShare({ u: blob.url, t: title });
-  return Response.json({ shareUrl: `${appOrigin(req)}/s/${token}`, image: blob.url });
+  return Response.json({
+    shareUrl: `${appOrigin(req)}/s/${token}`,
+    image: blob.url,
+  });
 }

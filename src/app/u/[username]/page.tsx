@@ -75,7 +75,9 @@ export default async function PublicInkblotPage({
   // OG scrape (and README embed) hit a warm CDN entry instead of a cold render.
   after(async () => {
     try {
-      await fetch(`${APP}/u/${username}/inkblot.png${q}`, { cache: "no-store" });
+      await fetch(`${APP}/u/${username}/inkblot.png${q}`, {
+        cache: "no-store",
+      });
     } catch {
       // best-effort warm; ignore failures
     }

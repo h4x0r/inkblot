@@ -72,12 +72,15 @@ export async function fetchCommitEvents(
   const concurrency = opts.concurrency ?? DEFAULT_CONCURRENCY;
 
   // repos the viewer can see, most-recently-pushed first
-  const allRepos = await octo.paginate(octo.rest.repos.listForAuthenticatedUser, {
-    affiliation: "owner,collaborator,organization_member",
-    sort: "pushed",
-    direction: "desc",
-    per_page: PER_PAGE,
-  });
+  const allRepos = await octo.paginate(
+    octo.rest.repos.listForAuthenticatedUser,
+    {
+      affiliation: "owner,collaborator,organization_member",
+      sort: "pushed",
+      direction: "desc",
+      per_page: PER_PAGE,
+    },
+  );
   const active = allRepos.filter((r) => (r.pushed_at ?? "") >= since);
   const repos = active.slice(0, maxRepos);
   let truncated = active.length > maxRepos;
@@ -173,7 +176,11 @@ export async function fetchPublicActivity(
   const concurrency = opts.concurrency ?? 10;
 
   const { data: u } = await octo.rest.users.getByUsername({ username });
-  const viewer: Viewer = { login: u.login, name: u.name, avatarUrl: u.avatar_url };
+  const viewer: Viewer = {
+    login: u.login,
+    name: u.name,
+    avatarUrl: u.avatar_url,
+  };
 
   const allRepos = await octo.paginate(octo.rest.repos.listForUser, {
     username,
@@ -182,7 +189,9 @@ export async function fetchPublicActivity(
     direction: "desc",
     per_page: PER_PAGE,
   });
-  const active = allRepos.filter((r) => !r.fork && (r.pushed_at ?? "") >= since);
+  const active = allRepos.filter(
+    (r) => !r.fork && (r.pushed_at ?? "") >= since,
+  );
   const repos = active.slice(0, maxRepos);
   let truncated = active.length > maxRepos;
 

@@ -10,7 +10,8 @@ function total(hours: number, at: Record<number, number>): number[] {
   return a;
 }
 
-const make = (t: number[]) => classifyPersona({ start: MON, stepHours: 1, total: t });
+const make = (t: number[]) =>
+  classifyPersona({ start: MON, stepHours: 1, total: t });
 
 describe("classifyPersona", () => {
   it("Night Owl when commits cluster after midnight", () => {
@@ -21,13 +22,17 @@ describe("classifyPersona", () => {
   });
 
   it("9-to-5 Machine for weekday business-hours commits", () => {
-    const p = make(total(24, { 9: 3, 10: 3, 11: 3, 13: 3, 14: 3, 15: 3, 16: 3 }));
+    const p = make(
+      total(24, { 9: 3, 10: 3, 11: 3, 13: 3, 14: 3, 15: 3, 16: 3 }),
+    );
     expect(p.persona).toBe("9-to-5 Machine");
   });
 
   it("Weekend Warrior when most commits land on Sat/Sun", () => {
     // day index 5 = Saturday, 6 = Sunday (from a Monday start), midday
-    const p = make(total(24 * 7, { [24 * 5 + 12]: 10, [24 * 6 + 13]: 8, [24 * 1 + 12]: 1 }));
+    const p = make(
+      total(24 * 7, { [24 * 5 + 12]: 10, [24 * 6 + 13]: 8, [24 * 1 + 12]: 1 }),
+    );
     expect(p.persona).toBe("Weekend Warrior");
   });
 

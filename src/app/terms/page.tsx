@@ -10,8 +10,12 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight">Terms of Service</h1>
-      <p className="text-muted-foreground mt-2 text-sm">Last updated: 24 June 2026</p>
+      <h1 className="text-3xl font-semibold tracking-tight">
+        Terms of Service
+      </h1>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Last updated: 24 June 2026
+      </p>
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed">
         <p>
@@ -24,16 +28,19 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold">The service</h2>
           <p className="mt-2">
             Inkblot renders GitHub commit activity as a chart, from your own
-            account (after sign-in) or any public GitHub username. It is provided
-            free of charge and <strong>&ldquo;as is&rdquo;</strong>, without
-            warranties of any kind. We may change or discontinue it at any time.
+            account (after sign-in) or any public GitHub username. It is
+            provided free of charge and <strong>&ldquo;as is&rdquo;</strong>,
+            without warranties of any kind. We may change or discontinue it at
+            any time.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold">Acceptable use</h2>
           <ul className="mt-2 list-disc space-y-2 pl-5">
-            <li>Don&rsquo;t abuse, overload, or attempt to disrupt the Service.</li>
+            <li>
+              Don&rsquo;t abuse, overload, or attempt to disrupt the Service.
+            </li>
             <li>
               Don&rsquo;t use it to harass others or for any unlawful purpose.
             </li>
@@ -53,9 +60,9 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold">Intellectual property</h2>
           <p className="mt-2">
-            GitHub data belongs to its respective owners. The Inkblot source code
-            is released under the MIT License. Charts you generate are yours to
-            share.
+            GitHub data belongs to its respective owners. The Inkblot source
+            code is released under the MIT License. Charts you generate are
+            yours to share.
           </p>
         </section>
 

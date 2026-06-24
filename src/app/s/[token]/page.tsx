@@ -24,7 +24,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       images: [{ url: d.u, width: 2240, height: 1120 }],
     },
-    twitter: { card: "summary_large_image", title: d.t, description, images: [d.u] },
+    twitter: {
+      card: "summary_large_image",
+      title: d.t,
+      description,
+      images: [d.u],
+    },
   };
 }
 
@@ -35,7 +40,9 @@ export default async function SharePage({ params }: Params) {
   if (!d) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-        <p className="text-muted-foreground">That share link is invalid or expired.</p>
+        <p className="text-muted-foreground">
+          That share link is invalid or expired.
+        </p>
         <Link href="/" className={cn(buttonVariants())}>
           Go to Inkblot
         </Link>
@@ -65,14 +72,20 @@ export default async function SharePage({ params }: Params) {
           history bloom into a streamgraph.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link href="/" className={cn(buttonVariants({ size: "lg" }), "gap-2")}>
+          <Link
+            href="/"
+            className={cn(buttonVariants({ size: "lg" }), "gap-2")}
+          >
             Plot your own →
           </Link>
           <a
             href={xHref}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "gap-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "gap-2",
+            )}
           >
             <XMark className="size-4" /> Share
           </a>
@@ -80,7 +93,10 @@ export default async function SharePage({ params }: Params) {
             href={liHref}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "gap-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "gap-2",
+            )}
           >
             <LinkedInMark className="size-4" /> Share
           </a>

@@ -233,7 +233,8 @@ export function parseChartParams(p: URLSearchParams): ChartParams {
   };
 }
 
-const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const B64URL =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 function bytesToB64url(bytes: number[]): string {
   let out = "";
@@ -252,7 +253,8 @@ function bytesToB64url(bytes: number[]): string {
     out += B64URL[(n >> 18) & 63] + B64URL[(n >> 12) & 63];
   } else if (rem === 2) {
     const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
-    out += B64URL[(n >> 18) & 63] + B64URL[(n >> 12) & 63] + B64URL[(n >> 6) & 63];
+    out +=
+      B64URL[(n >> 18) & 63] + B64URL[(n >> 12) & 63] + B64URL[(n >> 6) & 63];
   }
   return out;
 }
@@ -262,7 +264,8 @@ function b64urlToBytes(s: string): number[] {
   const bytes: number[] = [];
   let i = 0;
   for (; i + 3 < s.length; i += 4) {
-    const n = (v(s[i]) << 18) | (v(s[i + 1]) << 12) | (v(s[i + 2]) << 6) | v(s[i + 3]);
+    const n =
+      (v(s[i]) << 18) | (v(s[i + 1]) << 12) | (v(s[i + 2]) << 6) | v(s[i + 3]);
     bytes.push((n >> 16) & 255, (n >> 8) & 255, n & 255);
   }
   const rem = s.length - i;

@@ -178,11 +178,14 @@ export function Dashboard({ user }: { user: User }) {
       try {
         const png = await fetch(imgUrl).then((r) => r.blob());
         const title = `${data.viewer.login}'s GitHub Activity History`;
-        const res = await fetch(`/api/share?title=${encodeURIComponent(title)}`, {
-          method: "POST",
-          headers: { "content-type": "image/png" },
-          body: png,
-        });
+        const res = await fetch(
+          `/api/share?title=${encodeURIComponent(title)}`,
+          {
+            method: "POST",
+            headers: { "content-type": "image/png" },
+            body: png,
+          },
+        );
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
           throw new Error(e.detail || e.error || res.statusText);
@@ -294,7 +297,10 @@ export function Dashboard({ user }: { user: User }) {
                       const idx = Math.round(
                         (inputToMs(e.target.value) - data.start) / stepMs,
                       );
-                      setRange([Math.max(0, Math.min(idx, range[1] - 1)), range[1]]);
+                      setRange([
+                        Math.max(0, Math.min(idx, range[1] - 1)),
+                        range[1],
+                      ]);
                     }}
                   />
                   <span className="text-muted-foreground">→</span>
@@ -381,8 +387,8 @@ export function Dashboard({ user }: { user: User }) {
             </div>
 
             <p className="text-muted-foreground/70 text-xs">
-              Last {Math.round(data.lookbackDays / 30)} months ·{" "}
-              {selected.size} of {data.repos.length} repos
+              Last {Math.round(data.lookbackDays / 30)} months · {selected.size}{" "}
+              of {data.repos.length} repos
               {selected.size < data.repos.length && " — add more in the menu"}
               {data.truncated && " · capped for speed"}
               {" · Share publishes this chart to a public, unguessable link"}
@@ -390,8 +396,8 @@ export function Dashboard({ user }: { user: User }) {
             {selectedPrivate > 0 && (
               <p className="text-xs font-medium text-amber-500/90">
                 ⚠ {selectedPrivate} private repo{selectedPrivate > 1 ? "s" : ""}{" "}
-                selected — their names appear in the chart, and sharing publishes
-                them on a public image.
+                selected — their names appear in the chart, and sharing
+                publishes them on a public image.
               </p>
             )}
 

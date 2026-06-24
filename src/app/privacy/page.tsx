@@ -11,7 +11,9 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Privacy Policy</h1>
-      <p className="text-muted-foreground mt-2 text-sm">Last updated: 24 June 2026</p>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Last updated: 24 June 2026
+      </p>
 
       <div className="mt-8 space-y-6 text-sm leading-relaxed">
         <p>
@@ -40,14 +42,16 @@ export default function PrivacyPage() {
               transmit your source code.
             </li>
             <li>
-              <strong>Public pages (<code>/u/&lt;username&gt;</code>):</strong>{" "}
-              the requested user&rsquo;s <em>public</em> commit metadata, fetched
-              with no login. Only public data is used on this path.
+              <strong>
+                Public pages (<code>/u/&lt;username&gt;</code>):
+              </strong>{" "}
+              the requested user&rsquo;s <em>public</em> commit metadata,
+              fetched with no login. Only public data is used on this path.
             </li>
             <li>
               <strong>Shared images:</strong> if you create a share link, the
-              rendered chart image is stored at an unguessable URL on Vercel Blob
-              and automatically deleted after about 30 days.
+              rendered chart image is stored at an unguessable URL on Vercel
+              Blob and automatically deleted after about 30 days.
             </li>
             <li>
               <strong>Operational logs:</strong> we write structured log lines
@@ -72,10 +76,11 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-semibold">Processors</h2>
           <p className="mt-2">
-            We rely on: <strong>GitHub</strong> (authentication and the source of
-            commit data), <strong>Vercel</strong> (hosting, serverless functions,
-            Blob storage, and analytics), and <strong>Axiom</strong> (log
-            storage). Each processes data on our behalf under its own terms.
+            We rely on: <strong>GitHub</strong> (authentication and the source
+            of commit data), <strong>Vercel</strong> (hosting, serverless
+            functions, Blob storage, and analytics), and <strong>Axiom</strong>{" "}
+            (log storage). Each processes data on our behalf under its own
+            terms.
           </p>
         </section>
 

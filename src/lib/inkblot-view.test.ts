@@ -44,10 +44,16 @@ describe("index/ms helpers", () => {
 
 describe("sortedRepoNames", () => {
   it("is lexicographic (matches the image route's universe)", () => {
-    expect(sortedRepoNames(view({ repos: [{ name: "zed", total: 1 }, { name: "abc", total: 2 }] }))).toEqual([
-      "abc",
-      "zed",
-    ]);
+    expect(
+      sortedRepoNames(
+        view({
+          repos: [
+            { name: "zed", total: 1 },
+            { name: "abc", total: 2 },
+          ],
+        }),
+      ),
+    ).toEqual(["abc", "zed"]);
   });
 });
 
@@ -108,13 +114,17 @@ describe("buildShareParams (omit-when-default)", () => {
   });
   it("emits from/to when the range differs from default", () => {
     const d = view();
-    const p = new URLSearchParams(buildShareParams(d, ["alpha", "beta"], [10, 20]));
+    const p = new URLSearchParams(
+      buildShareParams(d, ["alpha", "beta"], [10, 20]),
+    );
     expect(p.get("from")).toBe(String(10 * HOUR_MS));
     expect(p.get("to")).toBe(String(20 * HOUR_MS));
   });
   it("emits a repos mask when the selection differs from default", () => {
     const d = view();
-    const p = new URLSearchParams(buildShareParams(d, ["alpha"], defaultRange(d)));
+    const p = new URLSearchParams(
+      buildShareParams(d, ["alpha"], defaultRange(d)),
+    );
     expect(p.get("repos")).toBeTruthy();
   });
   it("round-trips through resolveView", () => {

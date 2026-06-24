@@ -3,7 +3,14 @@ import { isValidGitHubUsername, repoLabel } from "./github";
 
 describe("isValidGitHubUsername", () => {
   it("accepts valid GitHub usernames", () => {
-    for (const u of ["torvalds", "h4x0r", "a", "a-b", "gaearon", "x".repeat(39)]) {
+    for (const u of [
+      "torvalds",
+      "h4x0r",
+      "a",
+      "a-b",
+      "gaearon",
+      "x".repeat(39),
+    ]) {
       expect(isValidGitHubUsername(u)).toBe(true);
     }
   });
