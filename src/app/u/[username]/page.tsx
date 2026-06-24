@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import Link from "next/link";
 import { PublicExplorer } from "@/components/public-explorer";
+import { UsernameForm } from "@/components/username-form";
 import { buttonVariants } from "@/components/ui/button";
 import { isValidGitHubUsername } from "@/lib/github";
 import { cn } from "@/lib/utils";
@@ -86,15 +87,18 @@ export default async function PublicInkblotPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           <span className="text-primary">{username}</span>&apos;s code inkblot
         </h1>
-        <Link
-          href="/"
-          className={cn(
-            buttonVariants({ variant: "ghost" }),
-            "text-muted-foreground",
-          )}
-        >
-          Sign in to include private repos →
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <UsernameForm compact />
+          <Link
+            href="/"
+            className={cn(
+              buttonVariants({ variant: "ghost" }),
+              "text-muted-foreground",
+            )}
+          >
+            Sign in for private repos →
+          </Link>
+        </div>
       </div>
 
       <PublicExplorer username={username} />
