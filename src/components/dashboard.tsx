@@ -268,8 +268,11 @@ export function Dashboard({ user }: { user: User }) {
                     Pick at least one repo to bloom the chart.
                   </div>
                 ) : (
-                  <div className="absolute inset-0 grid place-items-center">
-                    <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="text-primary size-6 animate-spin" />
+                    <p className="text-muted-foreground text-xs">
+                      Rendering your chart…
+                    </p>
                   </div>
                 )}
               </div>
@@ -281,14 +284,52 @@ export function Dashboard({ user }: { user: User }) {
   );
 }
 
+const LOADING_MESSAGES = [
+  "Connecting to GitHub…",
+  "Fetching your commit history…",
+  "Scanning your repositories…",
+  "Active accounts have a lot of commits — hang tight…",
+  "Binning commits by the hour…",
+  "Almost there…",
+];
+
 function LoadingState() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(
+      () => setI((p) => Math.min(p + 1, LOADING_MESSAGES.length - 1)),
+      4000,
+    );
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex gap-4">
         <Skeleton className="h-9 w-[220px]" />
         <Skeleton className="h-9 flex-1" />
       </div>
-      <Skeleton className="aspect-[2/1] w-full" />
+      <Card className="flex aspect-[2/1] w-full flex-col items-center justify-center gap-4 border bg-[#0d1117] p-6 text-center">
+        <Loader2 className="text-primary size-8 animate-spin" />
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Building your activity chart…</p>
+          <p
+            key={i}
+            className="text-muted-foreground animate-in fade-in text-sm duration-500"
+          >
+            {LOADING_MESSAGES[i]}
+          </p>
+        </div>
+        <div className="bg-muted relative h-1 w-56 overflow-hidden rounded-full">
+          <div
+            className="bg-primary absolute inset-y-0 left-0 w-1/3 rounded-full"
+            style={{ animation: "indeterminate 1.4s ease-in-out infinite" }}
+          />
+        </div>
+        <p className="text-muted-foreground/60 text-xs">
+          First load can take ~30–60s for very active accounts. Please wait.
+        </p>
+      </Card>
     </div>
   );
 }

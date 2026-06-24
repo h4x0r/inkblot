@@ -129,3 +129,13 @@
     @apply font-sans;
   }
 }
+
+/* indeterminate progress bar for the first-load state */
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
