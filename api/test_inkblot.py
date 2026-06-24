@@ -63,16 +63,34 @@ def test_window_slices_to_subrange():
     assert img.startswith(PNG_SIG)
 
 
-def test_window_with_no_commits_raises():
-    p = {**_sample(), "window": [8 * HOUR_MS, 9 * HOUR_MS]}  # alpha all-zero here
-    # beta has a commit at bin 9, so this should still render; use a true gap:
-    p["series"] = {"alpha": [5, 0, 0], "beta": [3, 0, 0]}
-    p["window"] = [1 * HOUR_MS, 2 * HOUR_MS]
+def test_window_with_no_commits_renders_placeholder():
+    # A valid window in which the selection happens to have zero commits must
+    # NOT raise — a README/OG embed image must never break. It degrades to a
+    # clear "no activity in this window" placeholder PNG instead.
+    p = {**_sample(), "series": {"alpha": [5, 0, 0], "beta": [3, 0, 0]}}
+    p["window"] = [1 * HOUR_MS, 2 * HOUR_MS]  # bins 1..2 are all-zero
+    img = render_inkblot(p)
+    assert img.startswith(PNG_SIG), "empty window should degrade to a placeholder"
+    assert len(img) > 1000
+
+
+def test_selected_repos_absent_renders_placeholder():
+    # A stale URL repo-mask can decode to names no longer in the series; that
+    # must also degrade to a placeholder rather than 502.
+    img = render_inkblot({**_sample(), "selected": ["ghost", "vanished"]})
+    assert img.startswith(PNG_SIG)
+    assert len(img) > 1000
+
+
+def test_zero_width_window_raises():
+    # from >= to is a genuinely malformed range (the slider can't produce it);
+    # keep failing loud on that, distinct from a valid-but-empty window.
+    p = {**_sample(), "window": [5 * HOUR_MS, 2 * HOUR_MS]}
     try:
         render_inkblot(p)
     except ValueError:
         return
-    raise AssertionError("expected ValueError when window has no commits")
+    raise AssertionError("expected ValueError on a zero-width (from>=to) window")
 
 
 def test_too_many_repos_raises():
