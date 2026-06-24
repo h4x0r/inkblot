@@ -208,3 +208,92 @@ export function detectOnsetWindow(
     to: s.start + (s.hours - 1) * stepMs,
   };
 }
+
+// --- URL state for the public /u explorer -----------------------------------
+
+export interface ChartParams {
+  from?: number;
+  to?: number;
+  /** Raw base64url repo bitmask (decoded against the name-sorted repo list). */
+  reposMask?: string;
+}
+
+/** Parse from/to (epoch-ms or ISO) and the raw repo mask out of the URL. */
+export function parseChartParams(p: URLSearchParams): ChartParams {
+  const num = (v: string | null): number | undefined => {
+    if (!v) return undefined;
+    if (/^\d+$/.test(v)) return Number(v);
+    const t = Date.parse(v);
+    return Number.isNaN(t) ? undefined : t;
+  };
+  return {
+    from: num(p.get("from")),
+    to: num(p.get("to")),
+    reposMask: p.get("repos") || undefined,
+  };
+}
+
+const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+function bytesToB64url(bytes: number[]): string {
+  let out = "";
+  let i = 0;
+  for (; i + 2 < bytes.length; i += 3) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    out +=
+      B64URL[(n >> 18) & 63] +
+      B64URL[(n >> 12) & 63] +
+      B64URL[(n >> 6) & 63] +
+      B64URL[n & 63];
+  }
+  const rem = bytes.length - i;
+  if (rem === 1) {
+    const n = bytes[i] << 16;
+    out += B64URL[(n >> 18) & 63] + B64URL[(n >> 12) & 63];
+  } else if (rem === 2) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+    out += B64URL[(n >> 18) & 63] + B64URL[(n >> 12) & 63] + B64URL[(n >> 6) & 63];
+  }
+  return out;
+}
+
+function b64urlToBytes(s: string): number[] {
+  const v = (c: string) => B64URL.indexOf(c);
+  const bytes: number[] = [];
+  let i = 0;
+  for (; i + 3 < s.length; i += 4) {
+    const n = (v(s[i]) << 18) | (v(s[i + 1]) << 12) | (v(s[i + 2]) << 6) | v(s[i + 3]);
+    bytes.push((n >> 16) & 255, (n >> 8) & 255, n & 255);
+  }
+  const rem = s.length - i;
+  if (rem === 2) {
+    bytes.push(((v(s[i]) << 18) | (v(s[i + 1]) << 12)) >> 16);
+  } else if (rem === 3) {
+    const n = (v(s[i]) << 18) | (v(s[i + 1]) << 12) | (v(s[i + 2]) << 6);
+    bytes.push((n >> 16) & 255, (n >> 8) & 255);
+  }
+  return bytes;
+}
+
+/** Encode a selection as a base64url bitmask over the name-sorted repo list. */
+export function encodeRepoMask(
+  allSorted: string[],
+  selected: Iterable<string>,
+): string {
+  const sel = new Set(selected);
+  const bytes = new Array<number>(Math.ceil(allSorted.length / 8)).fill(0);
+  allSorted.forEach((name, i) => {
+    if (sel.has(name)) bytes[i >> 3] |= 1 << (i & 7);
+  });
+  return bytesToB64url(bytes);
+}
+
+/** Decode a base64url bitmask back to repo names against the name-sorted list. */
+export function decodeRepoMask(allSorted: string[], mask: string): string[] {
+  const bytes = b64urlToBytes(mask);
+  const out: string[] = [];
+  allSorted.forEach((name, i) => {
+    if ((bytes[i >> 3] ?? 0) & (1 << (i & 7))) out.push(name);
+  });
+  return out;
+}
