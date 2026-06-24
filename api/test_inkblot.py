@@ -13,6 +13,7 @@ from _inkblot import (
     MAX_HOURS,
     MAX_POINTS,
     MAX_REPOS,
+    _allowed_avatar_host,
     render_inkblot,
 )
 
@@ -120,6 +121,25 @@ def test_non_numeric_counts_raise():
     except (ValueError, TypeError):
         return
     raise AssertionError("expected an error on non-numeric counts")
+
+
+def test_allowed_avatar_host_accepts_github():
+    assert _allowed_avatar_host("https://avatars.githubusercontent.com/u/123?v=4")
+    assert _allowed_avatar_host("https://github.com/h4x0r.png")
+
+
+def test_allowed_avatar_host_rejects_ssrf_and_other_hosts():
+    # arbitrary hosts, internal targets, and non-http schemes must be rejected
+    for bad in (
+        "https://evil.example.com/x.png",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://localhost:3000/api/activity",
+        "https://githubusercontent.com.evil.com/x.png",
+        "file:///etc/passwd",
+        "not-a-url",
+        "",
+    ):
+        assert not _allowed_avatar_host(bad), bad
 
 
 if __name__ == "__main__":
