@@ -186,6 +186,90 @@ def _nice_step(peak: float) -> float:
     return float(10 * mag)
 
 
+def _draw_chrome(
+    fig: Any, *, title: str, subtitle: str, caption: str, payload: dict[str, Any]
+) -> None:
+    """Title, subtitle, caption, and the credit/avatar/persona badges.
+
+    Shared by the normal chart and the empty-state placeholder so the framing
+    stays pixel-identical between them (one place to change the header).
+    """
+    fig.text(
+        0.5, 0.965, title, ha="center", fontsize=16, fontweight="bold", color=TITLE
+    )
+    fig.text(0.5, 0.938, subtitle, ha="center", fontsize=9, color=MUTED)
+    if caption:
+        fig.text(0.5, 0.012, caption, ha="center", fontsize=8, color=FAINT)
+    _draw_credit(fig)
+    _draw_avatar(fig, payload.get("avatar_url"))
+    _draw_persona_emoji(fig, payload.get("persona_emoji"))
+
+
+def _save_fig(fig: Any, fmt: str) -> bytes:
+    """Serialize a figure to PNG/SVG bytes and release it. One exit point so the
+    DPI / facecolor / close discipline can't drift between render paths."""
+    buf = io.BytesIO()
+    out_fmt = "svg" if fmt == "svg" else "png"
+    fig.savefig(buf, format=out_fmt, dpi=140, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def _render_placeholder(
+    payload: dict[str, Any],
+    *,
+    win_start_ms: float,
+    win_hours: int,
+    step_ms: float,
+    message: str,
+    fmt: str,
+) -> bytes:
+    """A clean 'nothing to show here' card for a valid-but-empty view.
+
+    A README/OG embed must never 502: when the selection has no commits in the
+    chosen window we draw this instead of raising, keeping the same chrome.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+    fig.patch.set_facecolor(BG)
+    ax.set_facecolor(BG)
+    ax.set_xlim(0, max(1, win_hours))
+    ax.set_ylim(-1, 1)
+    ax.axhline(0, color=GRID, lw=0.6, alpha=0.6)
+    for s in ("top", "right", "left", "bottom"):
+        ax.spines[s].set_visible(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.text(
+        0.5,
+        0.5,
+        message,
+        transform=ax.transAxes,
+        ha="center",
+        va="center",
+        fontsize=13,
+        color=MUTED,
+    )
+    d0 = dt.datetime.utcfromtimestamp(win_start_ms / 1000.0).date().isoformat()
+    d1 = (
+        dt.datetime.utcfromtimestamp(
+            (win_start_ms + (win_hours - 1) * step_ms) / 1000.0
+        )
+        .date()
+        .isoformat()
+    )
+    title = payload.get("title") or "GitHub Activity History"
+    subtitle = payload.get("subtitle") or "stacked streamgraph (symmetric)"
+    fig.subplots_adjust(left=0.055, right=0.86, top=0.90, bottom=0.14)
+    _draw_chrome(
+        fig,
+        title=title,
+        subtitle=subtitle,
+        caption=f"{d0} → {d1} · no commits in this view",
+        payload=payload,
+    )
+    return _save_fig(fig, fmt)
+
+
 def render_inkblot(payload: dict[str, Any]) -> bytes:
     """Render the inkblot PNG/SVG from a JSON-shaped payload.
 
@@ -237,11 +321,11 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
     # --- selection -----------------------------------------------------------
     selected = payload.get("selected")
     if selected:
+        # a stale URL repo-mask can name repos no longer in the series; those
+        # simply drop out and we fall through to a placeholder below
         repos_set = [r for r in selected if r in series_in]
     else:
         repos_set = list(series_in.keys())
-    if not repos_set:
-        raise ValueError("render_inkblot: no selected repos present in 'series'")
 
     # --- window slice --------------------------------------------------------
     window = payload.get("window")
@@ -252,6 +336,8 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
     else:
         i0, i1 = 0, n_hours
     if i1 <= i0:
+        # from >= to is a genuinely malformed range — fail loud (the slider
+        # can't produce it; only a hand-edited URL can)
         raise ValueError("render_inkblot: window selects zero bins")
 
     win_start_ms = start_ms + i0 * step_ms
@@ -264,7 +350,20 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
         (r for r in repos_set if totals[r] > 0), key=lambda r: totals[r], reverse=True
     )
     if not repos:
-        raise ValueError("render_inkblot: selection has no commits in the window")
+        # valid view, just empty — degrade to a placeholder so an embed never 502s
+        message = (
+            "Selected repositories have no activity here"
+            if selected
+            else "No commits in this window"
+        )
+        return _render_placeholder(
+            payload,
+            win_start_ms=win_start_ms,
+            win_hours=win_hours,
+            step_ms=step_ms,
+            message=message,
+            fmt=fmt,
+        )
 
     x = np.array(
         [
@@ -381,11 +480,6 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
         "stacked streamgraph (symmetric) · total thickness = commits/hour · "
         "busiest band centered"
     )
-    fig.text(
-        0.5, 0.965, title, ha="center", fontsize=16, fontweight="bold", color=TITLE
-    )
-    fig.text(0.5, 0.938, subtitle, ha="center", fontsize=9, color=MUTED)
-
     total_commits = int(sum(totals[r] for r in repos))
     cap = (
         f"{len(repos)} repos · {total_commits:,} commits · "
@@ -393,19 +487,11 @@ def render_inkblot(payload: dict[str, Any]) -> bytes:
         f"Gaussian-smoothed hourly rate (sigma={sigma_hours:g}h) · "
         f"peak ~{total_peak:,.1f}/h around {x[di].strftime('%b %d %H:%M')}"
     )
-    fig.text(0.5, 0.012, cap, ha="center", fontsize=8, color=FAINT)
 
     # Fixed margins (not tight_layout, which shrinks the axes to fit the legend
     # and leaves a wide chart→legend gap). The axes runs to 0.86; the adjacent
     # legend then fills 0.86→right-edge, so it's both close to the chart and
     # hugging the edge. Bottom band reserved for the credit.
     fig.subplots_adjust(left=0.055, right=0.86, top=0.90, bottom=0.14)
-    _draw_credit(fig)
-    _draw_avatar(fig, payload.get("avatar_url"))
-    _draw_persona_emoji(fig, payload.get("persona_emoji"))
-
-    buf = io.BytesIO()
-    out_fmt = "svg" if fmt == "svg" else "png"
-    fig.savefig(buf, format=out_fmt, dpi=140, facecolor=fig.get_facecolor())
-    plt.close(fig)
-    return buf.getvalue()
+    _draw_chrome(fig, title=title, subtitle=subtitle, caption=cap, payload=payload)
+    return _save_fig(fig, fmt)
