@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import Image from "next/image";
 import { doSignIn } from "@/app/actions";
-import { Button } from "@/components/ui/button";
+import { UsernameForm } from "@/components/username-form";
 
 // lucide-react v1 dropped brand glyphs, so the GitHub mark is inlined.
 function GitHubMark({ className }: { className?: string }) {
@@ -22,6 +22,9 @@ export function Landing() {
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
       <div className="flex w-full max-w-5xl flex-col items-center gap-10">
         <div className="flex flex-col items-center gap-5 text-center">
+          <span className="font-mono text-sm font-semibold tracking-tight">
+            Inkblot
+          </span>
           <span className="text-muted-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
             <Sparkles className="size-3.5" />a little pat on the back for the
             grind
@@ -30,18 +33,27 @@ export function Landing() {
             your commits, <span className="text-primary">as art</span>
           </h1>
           <p className="text-muted-foreground max-w-xl text-lg text-pretty">
-            Sign in with GitHub and watch your activity bloom into a symmetric
-            streamgraph — a Rorschach inkblot of every late night you shipped.
+            Type a GitHub username and watch a year of commits bloom into a
+            symmetric streamgraph — a Rorschach inkblot of every late night
+            shipped. No login needed.
           </p>
 
+          {/* primary, friction-free: no login */}
+          <UsernameForm />
+
+          {/* secondary: sign in only to include private repos */}
           <form action={doSignIn}>
-            <Button type="submit" size="lg" className="gap-2 text-base">
-              <GitHubMark className="size-5" />
-              Sign in with GitHub
-            </Button>
+            <button
+              type="submit"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm"
+            >
+              <GitHubMark className="size-4" />
+              or sign in to include your private repos
+            </button>
           </form>
           <p className="text-muted-foreground/70 font-mono text-xs">
-            read-only · we render, we don&apos;t store your code
+            public data only · read-only · we render, we don&apos;t store your
+            code
           </p>
         </div>
 
