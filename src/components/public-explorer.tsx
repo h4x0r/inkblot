@@ -1,19 +1,16 @@
 "use client";
 
 import { Check, Copy, Download, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LinkedInMark, XMark } from "@/components/brand-icons";
 import { RepoPicker, type RepoInfo } from "@/components/repo-picker";
+import { TimeRangeControls } from "@/components/time-range-controls";
+import { useInkblotRenderer } from "@/components/use-inkblot-renderer";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { HOUR_MS, parseChartParams } from "@/lib/activity";
-import {
-  buildRenderPayload,
-  buildShareParams,
-  seedView,
-} from "@/lib/inkblot-view";
+import { buildShareParams, seedView } from "@/lib/inkblot-view";
 import { cn } from "@/lib/utils";
 
 interface Persona {
@@ -36,23 +33,15 @@ interface ActivityData {
   window: { from: number; to: number };
 }
 
-const msToInput = (ms: number) => new Date(ms).toISOString().slice(0, 16);
-const inputToMs = (v: string) => new Date(`${v}Z`).getTime();
-
 export function PublicExplorer({ username }: { username: string }) {
   const [data, setData] = useState<ActivityData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [range, setRange] = useState<[number, number]>([0, 0]);
-  const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const urlRef = useRef<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
   const stepMs = (data?.stepHours ?? 1) * HOUR_MS;
+  const { imgUrl, busy } = useInkblotRenderer(data, selected, range);
 
   // --- load public activity once, seed state from URL params ----------------
   useEffect(() => {
@@ -95,64 +84,6 @@ export function PublicExplorer({ username }: { username: string }) {
       : `/u/${username}`;
     window.history.replaceState(null, "", url);
   }, [paramString, username, data]);
-
-  // --- live preview render (snappy POST; share uses the cached image route) -
-  const renderInkblot = useCallback(async () => {
-    if (!data || data.empty || selected.size === 0) return;
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setBusy(true);
-    try {
-      const res = await fetch("/api/render", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          buildRenderPayload(data, selected, range, {
-            title: `${data.viewer.login}'s GitHub Activity History`,
-            subtitle: data.persona
-              ? `${data.persona.persona} · ${data.persona.superlative}`
-              : undefined,
-            personaEmoji: data.persona?.emoji,
-            avatarUrl: data.viewer.avatarUrl ?? undefined,
-          }),
-        ),
-        signal: ctrl.signal,
-      });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e.error || res.statusText);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = url;
-      setImgUrl(url);
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      toast.error("Couldn't render the chart", {
-        description: (err as Error).message,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }, [data, selected, range]);
-
-  useEffect(() => {
-    if (!data || data.empty) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(renderInkblot, 220);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [renderInkblot, data]);
-
-  useEffect(
-    () => () => {
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    },
-    [],
-  );
 
   const toggle = useCallback((name: string) => {
     setSelected((prev) => {
@@ -244,60 +175,14 @@ export function PublicExplorer({ username }: { username: string }) {
           onAll={selectAll}
           onNone={selectNone}
         />
-        <div className="flex min-w-[280px] flex-1 flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-            <input
-              type="datetime-local"
-              aria-label="From"
-              className="border-input bg-background text-foreground rounded-md border px-2 py-1 [color-scheme:dark]"
-              min={msToInput(data.start)}
-              max={msToInput(data.start + (data.hours - 1) * stepMs)}
-              value={msToInput(data.start + range[0] * stepMs)}
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const idx = Math.round(
-                  (inputToMs(e.target.value) - data.start) / stepMs,
-                );
-                setRange([Math.max(0, Math.min(idx, range[1] - 1)), range[1]]);
-              }}
-            />
-            <span className="text-muted-foreground">→</span>
-            <input
-              type="datetime-local"
-              aria-label="To"
-              className="border-input bg-background text-foreground rounded-md border px-2 py-1 [color-scheme:dark]"
-              min={msToInput(data.start)}
-              max={msToInput(data.start + (data.hours - 1) * stepMs)}
-              value={msToInput(data.start + range[1] * stepMs)}
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const idx = Math.round(
-                  (inputToMs(e.target.value) - data.start) / stepMs,
-                );
-                setRange([
-                  range[0],
-                  Math.min(data.hours - 1, Math.max(idx, range[0] + 1)),
-                ]);
-              }}
-            />
-            {busy && (
-              <span className="text-primary inline-flex items-center gap-1">
-                <Loader2 className="size-3 animate-spin" /> rendering
-              </span>
-            )}
-          </div>
-          <Slider
-            min={0}
-            max={data.hours - 1}
-            step={1}
-            value={range}
-            onValueChange={(v) => {
-              const a = Array.isArray(v) ? v : [v, v];
-              setRange([a[0], a[1]]);
-            }}
-            minStepsBetweenValues={1}
-          />
-        </div>
+        <TimeRangeControls
+          start={data.start}
+          hours={data.hours}
+          stepMs={stepMs}
+          range={range}
+          onChange={setRange}
+          busy={busy}
+        />
         <div className="flex items-center gap-2">
           {imgUrl && (
             <a
