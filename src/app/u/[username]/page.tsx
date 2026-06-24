@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { after } from "next/server";
 import Link from "next/link";
-import { LinkedInMark, XMark } from "@/components/brand-icons";
-import { UActions } from "@/components/u-actions";
+import { PublicExplorer } from "@/components/public-explorer";
 import { buttonVariants } from "@/components/ui/button";
 import { isValidGitHubUsername } from "@/lib/github";
 import { cn } from "@/lib/utils";
@@ -10,12 +9,32 @@ import { cn } from "@/lib/utils";
 const APP =
   process.env.AUTH_URL ?? "https://gh-activity-plotter.securityronin.com";
 
-type Params = { params: Promise<{ username: string }> };
+type Search = Record<string, string | string[] | undefined>;
+type Params = {
+  params: Promise<{ username: string }>;
+  searchParams: Promise<Search>;
+};
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+// Carry the explorer's from/to/repos params onto the image + canonical URLs so
+// a shared link's OG card matches the exact view the sharer was looking at.
+function chartQuery(sp: Search): string {
+  const p = new URLSearchParams();
+  for (const key of ["from", "to", "repos"]) {
+    const v = sp[key];
+    if (typeof v === "string" && v) p.set(key, v);
+  }
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Params): Promise<Metadata> {
   const { username } = await params;
   if (!isValidGitHubUsername(username)) return { title: "Inkblot" };
-  const img = `${APP}/u/${username}/inkblot.png`;
+  const q = chartQuery(await searchParams);
+  const img = `${APP}/u/${username}/inkblot.png${q}`;
   const title = `${username}'s code inkblot`;
   const description = `What does ${username}'s GitHub activity look like? Made with Inkblot.`;
   return {
@@ -30,13 +49,18 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-export default async function PublicInkblotPage({ params }: Params) {
+export default async function PublicInkblotPage({
+  params,
+  searchParams,
+}: Params) {
   const { username } = await params;
 
   if (!isValidGitHubUsername(username)) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-        <p className="text-muted-foreground">That isn&apos;t a valid GitHub username.</p>
+        <p className="text-muted-foreground">
+          That isn&apos;t a valid GitHub username.
+        </p>
         <Link href="/" className={cn(buttonVariants())}>
           Go to Inkblot
         </Link>
@@ -44,65 +68,36 @@ export default async function PublicInkblotPage({ params }: Params) {
     );
   }
 
-  const img = `/u/${username}/inkblot.png`;
-  const pageUrl = `${APP}/u/${username}`;
+  const q = chartQuery(await searchParams);
 
-  // Pre-warm the image cache after the response so the OG scrape (and the
-  // README embed) hit a warm CDN entry instead of a cold ~render. The human's
-  // <img> load below also warms it; this covers a scraper-first page hit.
+  // Pre-warm the cached image for this exact view after the response, so the
+  // OG scrape (and README embed) hit a warm CDN entry instead of a cold render.
   after(async () => {
     try {
-      await fetch(`${APP}/u/${username}/inkblot.png`, { cache: "no-store" });
+      await fetch(`${APP}/u/${username}/inkblot.png${q}`, { cache: "no-store" });
     } catch {
       // best-effort warm; ignore failures
     }
   });
-  const embed = `![${username}'s code inkblot](${APP}/u/${username}/inkblot.png)`;
-  const xHref = `https://x.com/intent/post?text=${encodeURIComponent(
-    `${username}'s code inkblot 🦇 — what's yours?`,
-  )}&url=${encodeURIComponent(pageUrl)}`;
-  const liHref = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-    pageUrl,
-  )}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-8 px-6 py-10">
-      <div className="ring-border/60 bg-card/40 w-full overflow-hidden rounded-xl border shadow-2xl ring-1">
-        {/* eslint-disable-next-line @next/next/no-img-element -- generated, dynamic PNG */}
-        <img src={img} alt={`${username}'s code inkblot`} className="h-auto w-full" />
-      </div>
-
-      <div className="flex flex-col items-center gap-3 text-center">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">
           <span className="text-primary">{username}</span>&apos;s code inkblot
         </h1>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <a
-            href={xHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-          >
-            <XMark className="size-4" /> Share
-          </a>
-          <a
-            href={liHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-          >
-            <LinkedInMark className="size-4" /> Share
-          </a>
-          <Link
-            href="/"
-            className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
-          >
-            Sign in to include private repos →
-          </Link>
-        </div>
+        <Link
+          href="/"
+          className={cn(
+            buttonVariants({ variant: "ghost" }),
+            "text-muted-foreground",
+          )}
+        >
+          Sign in to include private repos →
+        </Link>
       </div>
 
-      <UActions embed={embed} />
+      <PublicExplorer username={username} />
     </main>
   );
 }
