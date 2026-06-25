@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LinkedInMark, XMark } from "@/components/brand-icons";
-import { UsernameForm } from "@/components/username-form";
+import { PlotCta } from "@/components/plot-cta";
 import { buttonVariants } from "@/components/ui/button";
 import { decodeShare } from "@/lib/share";
 import { cn } from "@/lib/utils";
@@ -74,8 +74,8 @@ export default async function SharePage({ params }: Params) {
           bloom into a streamgraph — no login needed.
         </p>
 
-        {/* primary, friction-free: type a username → /u/<username> (no login) */}
-        <UsernameForm />
+        {/* same call-to-action as the landing page: username, demos, sign-in */}
+        <PlotCta />
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <a
