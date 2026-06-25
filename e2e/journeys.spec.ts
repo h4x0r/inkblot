@@ -10,6 +10,25 @@ test("landing: typing a username plots them", async ({ page }) => {
   await expect(page).toHaveURL(/\/u\/torvalds$/);
 });
 
+// Like the landing/profile flow, the share page should lead with the
+// friction-free "type a username" form (no login), not a sign-in nudge.
+test("share page: typing a username plots them (no login required)", async ({
+  page,
+}) => {
+  const token = Buffer.from(
+    JSON.stringify({
+      u: "https://demo.public.blob.vercel-storage.com/inkblot.png",
+      t: "Test inkblot",
+    }),
+  ).toString("base64url");
+  await page.goto(`/s/${token}`);
+  const input = page.getByPlaceholder("any GitHub username");
+  await expect(input).toBeVisible();
+  await input.fill("torvalds");
+  await page.getByRole("button", { name: /Plot/ }).click();
+  await expect(page).toHaveURL(/\/u\/torvalds$/);
+});
+
 test("public explorer: renders persona, chart, and controls", async ({
   page,
 }) => {
