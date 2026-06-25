@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LinkedInMark, XMark } from "@/components/brand-icons";
+import { UsernameForm } from "@/components/username-form";
 import { buttonVariants } from "@/components/ui/button";
 import { decodeShare } from "@/lib/share";
 import { cn } from "@/lib/utils";
@@ -69,16 +70,14 @@ export default async function SharePage({ params }: Params) {
       <div className="flex flex-col items-center gap-4 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{d.t}</h1>
         <p className="text-muted-foreground max-w-md text-pretty">
-          Made with Inkblot. Sign in with GitHub and watch your own commit
-          history bloom into a streamgraph.
+          Made with Inkblot. Type a GitHub username and watch a year of commits
+          bloom into a streamgraph — no login needed.
         </p>
+
+        {/* primary, friction-free: type a username → /u/<username> (no login) */}
+        <UsernameForm />
+
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/"
-            className={cn(buttonVariants({ size: "lg" }), "gap-2")}
-          >
-            Plot your own →
-          </Link>
           <a
             href={xHref}
             target="_blank"
