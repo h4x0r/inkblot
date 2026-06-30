@@ -8,8 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { isValidGitHubUsername } from "@/lib/github";
 import { cn } from "@/lib/utils";
 
-const APP =
-  process.env.AUTH_URL ?? "https://inkblot.securityronin.com";
+const APP = process.env.AUTH_URL ?? "https://inkblot.securityronin.com";
 
 type Search = Record<string, string | string[] | undefined>;
 type Params = {
