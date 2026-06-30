@@ -45,6 +45,11 @@ const DEFAULT_MAX_REPOS = 150;
 const DEFAULT_MAX_COMMITS = 30_000;
 const MAX_PAGES_PER_REPO = 10; // ≤ 1000 commits/repo, bounds a single hot repo
 const DEFAULT_CONCURRENCY = 10;
+// Wall-clock cap for the commit-fetch phase, comfortably under the function's
+// execution limit so it always returns (partial + truncated) rather than being
+// killed. At ~150ms/call across DEFAULT_CONCURRENCY workers this still covers
+// roughly a thousand calls.
+const DEFAULT_BUDGET_MS = 15_000;
 const DAY_MS = 86_400_000;
 
 export interface FetchOptions {
@@ -52,6 +57,16 @@ export interface FetchOptions {
   maxRepos?: number;
   maxCommits?: number;
   concurrency?: number;
+  /**
+   * Wall-clock budget (ms) for the commit-fetch phase. When it elapses the
+   * fetch stops and returns what it has, marked `truncated`. This guarantees a
+   * response well inside the serverless function's execution limit — without it
+   * a many-repo account overruns the limit and the platform kills the function
+   * mid-flight, which the browser sees as a bare "Failed to fetch".
+   */
+  budgetMs?: number;
+  /** Injectable clock (testing seam); defaults to Date.now. */
+  now?: () => number;
 }
 
 /**
@@ -70,6 +85,8 @@ export async function fetchCommitEvents(
   const maxRepos = opts.maxRepos ?? DEFAULT_MAX_REPOS;
   const maxCommits = opts.maxCommits ?? DEFAULT_MAX_COMMITS;
   const concurrency = opts.concurrency ?? DEFAULT_CONCURRENCY;
+  const now = opts.now ?? Date.now;
+  const deadline = now() + (opts.budgetMs ?? DEFAULT_BUDGET_MS);
 
   // Repos the viewer can see, most-recently-pushed first. Page lazily and stop
   // as soon as we hold enough recently-pushed repos: the feed is sorted
@@ -112,8 +129,13 @@ export async function fetchCommitEvents(
   const privateRepos = new Set<string>();
   let cursor = 0;
 
+  let hitDeadline = false;
   const worker = async () => {
     while (cursor < repos.length && events.length < maxCommits) {
+      if (now() >= deadline) {
+        hitDeadline = true;
+        return;
+      }
       const r = repos[cursor++];
       const owner = r.owner?.login;
       if (!owner) continue;
@@ -121,6 +143,10 @@ export async function fetchCommitEvents(
       if (r.private) privateRepos.add(label);
       try {
         for (let page = 1; page <= MAX_PAGES_PER_REPO; page++) {
+          if (now() >= deadline) {
+            hitDeadline = true;
+            break;
+          }
           const { data } = await octo.rest.repos.listCommits({
             owner,
             repo: r.name,
@@ -146,7 +172,7 @@ export async function fetchCommitEvents(
   };
 
   await Promise.all(Array.from({ length: concurrency }, worker));
-  if (events.length >= maxCommits) truncated = true;
+  if (events.length >= maxCommits || hitDeadline) truncated = true;
   return {
     events: events.slice(0, maxCommits),
     truncated,
