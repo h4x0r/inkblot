@@ -43,8 +43,6 @@ const PER_PAGE = 100;
 const DEFAULT_SINCE_DAYS = 548; // ~18 months
 const DEFAULT_MAX_REPOS = 150;
 const DEFAULT_MAX_COMMITS = 30_000;
-const MAX_PAGES_PER_REPO = 10; // ≤ 1000 commits/repo, bounds a single hot repo
-const DEFAULT_CONCURRENCY = 10;
 // Wall-clock cap for the commit-fetch phase, comfortably under the function's
 // execution limit so it always returns (partial + truncated) rather than being
 // killed. At ~150ms/call across DEFAULT_CONCURRENCY workers this still covers
@@ -72,6 +70,112 @@ export interface FetchOptions {
   now?: () => number;
 }
 
+interface RepoRef {
+  owner: string;
+  name: string;
+  label: string;
+}
+
+// One repo's slice of a batched GraphQL `history` response. target/branch are
+// null for an empty or branch-less repo.
+interface RepoHistory {
+  defaultBranchRef: {
+    target: {
+      history: {
+        nodes: { committedDate: string }[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      };
+    } | null;
+  } | null;
+}
+
+// Repos packed into one GraphQL request. Each adds a `history(first:100)`
+// connection; ~15 keeps the query's node budget comfortable while collapsing N
+// per-repo round-trips into ⌈N/15⌉.
+const HISTORY_BATCH = 15;
+
+/**
+ * Fetch authored commits for `refs` via batched GraphQL `history` queries — many
+ * repos per request, full `committedDate` timestamps, every page of each repo.
+ * Returns `truncated` when the commit cap or the wall-clock deadline stopped it
+ * before every repo was fully paged. The `author: { id }` filter matches REST's
+ * author matching (verified at commit-count parity on real accounts).
+ */
+async function fetchAuthoredCommits(
+  octo: Octokit,
+  refs: RepoRef[],
+  authorId: string,
+  since: string,
+  opts: { maxCommits: number; deadline: number; now: () => number },
+): Promise<{ events: CommitEvent[]; truncated: boolean }> {
+  const events: CommitEvent[] = [];
+  const pending = refs.map((ref) => ({
+    ref,
+    cursor: null as string | null,
+    done: false,
+  }));
+  let truncated = false;
+
+  while (events.length < opts.maxCommits) {
+    if (opts.now() >= opts.deadline) {
+      truncated = true;
+      break;
+    }
+    const batch = pending.filter((t) => !t.done).slice(0, HISTORY_BATCH);
+    if (batch.length === 0) break;
+
+    const decls = ["$since:GitTimestamp!", "$aid:ID!"];
+    const fields: string[] = [];
+    const vars: Record<string, unknown> = { since, aid: authorId };
+    batch.forEach((t, i) => {
+      decls.push(`$o${i}:String!`, `$n${i}:String!`, `$a${i}:String`);
+      vars[`o${i}`] = t.ref.owner;
+      vars[`n${i}`] = t.ref.name;
+      vars[`a${i}`] = t.cursor;
+      fields.push(
+        `r${i}: repository(owner: $o${i}, name: $n${i}) { ` +
+          `defaultBranchRef { target { ... on Commit { ` +
+          `history(first: 100, since: $since, author: { id: $aid }, after: $a${i}) { ` +
+          `nodes { committedDate } pageInfo { hasNextPage endCursor } } } } } }`,
+      );
+    });
+    const query = `query (${decls.join(", ")}) { ${fields.join(" ")} }`;
+
+    let res: Record<string, RepoHistory | null>;
+    try {
+      res = await octo.graphql<Record<string, RepoHistory | null>>(query, vars);
+    } catch (err) {
+      // A partial failure (one inaccessible/empty repo) still carries data for
+      // the rest; use it. A total failure drops this batch rather than stalling.
+      const data = (err as { data?: Record<string, RepoHistory | null> }).data;
+      if (!data) {
+        batch.forEach((t) => (t.done = true));
+        continue;
+      }
+      res = data;
+    }
+
+    batch.forEach((t, i) => {
+      const h = res[`r${i}`]?.defaultBranchRef?.target?.history;
+      if (!h) {
+        t.done = true; // empty repo, no default branch, or inaccessible
+        return;
+      }
+      for (const node of h.nodes) {
+        const ts = Date.parse(node.committedDate);
+        if (!Number.isNaN(ts)) events.push({ repo: t.ref.label, ts });
+      }
+      if (h.pageInfo.hasNextPage) t.cursor = h.pageInfo.endCursor;
+      else t.done = true;
+    });
+  }
+
+  if (events.length >= opts.maxCommits || pending.some((t) => !t.done)) {
+    truncated = true;
+  }
+  return { events: events.slice(0, opts.maxCommits), truncated };
+}
+
 /**
  * Fetch the viewer's authored commit events over the lookback window.
  * `repoLabel` shortens "owner/repo" to "repo" when the owner is the viewer, so
@@ -87,7 +191,6 @@ export async function fetchCommitEvents(
   const since = new Date(Date.now() - sinceDays * DAY_MS).toISOString();
   const maxRepos = opts.maxRepos ?? DEFAULT_MAX_REPOS;
   const maxCommits = opts.maxCommits ?? DEFAULT_MAX_COMMITS;
-  const concurrency = opts.concurrency ?? DEFAULT_CONCURRENCY;
   const now = opts.now ?? Date.now;
   const deadline = now() + (opts.budgetMs ?? DEFAULT_BUDGET_MS);
 
@@ -128,57 +231,32 @@ export async function fetchCommitEvents(
     if (stop) break;
   }
 
-  const events: CommitEvent[] = [];
+  // Private-repo labels (for the share warning) + the (owner, name) refs to query.
   const privateRepos = new Set<string>();
-  let cursor = 0;
+  const refs: RepoRef[] = [];
+  for (const r of repos) {
+    const owner = r.owner?.login;
+    if (!owner) continue;
+    const label = repoLabel(r.full_name, login);
+    if (r.private) privateRepos.add(label);
+    refs.push({ owner, name: r.name, label });
+  }
 
-  let hitDeadline = false;
-  const worker = async () => {
-    while (cursor < repos.length && events.length < maxCommits) {
-      if (now() >= deadline) {
-        hitDeadline = true;
-        return;
-      }
-      const r = repos[cursor++];
-      const owner = r.owner?.login;
-      if (!owner) continue;
-      const label = repoLabel(r.full_name, login);
-      if (r.private) privateRepos.add(label);
-      try {
-        for (let page = 1; page <= MAX_PAGES_PER_REPO; page++) {
-          if (now() >= deadline) {
-            hitDeadline = true;
-            break;
-          }
-          const { data } = await octo.rest.repos.listCommits({
-            owner,
-            repo: r.name,
-            author: login,
-            since,
-            per_page: PER_PAGE,
-            page,
-          });
-          for (const c of data) {
-            const dateStr = c.commit?.author?.date ?? c.commit?.committer?.date;
-            if (!dateStr) continue;
-            const ts = Date.parse(dateStr);
-            if (!Number.isNaN(ts)) {
-              events.push({ repo: label, ts });
-            }
-          }
-          if (data.length < PER_PAGE) break; // last page for this repo
-        }
-      } catch {
-        // empty repo (409), revoked access, etc. — skip, never fail the fetch
-      }
-    }
-  };
+  // The viewer's node id for GraphQL's author filter. Batched history pulls
+  // every repo's authored commits in a handful of requests instead of one REST
+  // crawl per repo per page — so a many-repo account finishes inside the budget.
+  const { viewer } = await octo.graphql<{ viewer: { id: string } }>(
+    "{ viewer { id } }",
+  );
+  const fetched = await fetchAuthoredCommits(octo, refs, viewer.id, since, {
+    maxCommits,
+    deadline,
+    now,
+  });
 
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  if (events.length >= maxCommits || hitDeadline) truncated = true;
   return {
-    events: events.slice(0, maxCommits),
-    truncated,
+    events: fetched.events,
+    truncated: truncated || fetched.truncated,
     sinceDays,
     privateRepos: [...privateRepos],
   };
