@@ -45,8 +45,14 @@ vi.mock("@octokit/rest", () => {
     Octokit: vi.fn(function () {
       return {
         rest: {
+          users: {
+            getByUsername: async () => ({
+              data: { login: "me", name: "Me", avatar_url: null },
+            }),
+          },
           repos: {
             listForAuthenticatedUser: () => undefined,
+            listForUser: () => undefined,
             listCommits: async () => {
               // each commit page "costs" simulated wall-clock time
               oc.listCommitsCalls++;
@@ -61,7 +67,7 @@ vi.mock("@octokit/rest", () => {
   };
 });
 
-const { fetchCommitEvents } = await import("./github");
+const { fetchCommitEvents, fetchPublicActivity } = await import("./github");
 
 function repoPage(count: number, pushedAt: string) {
   return Array.from({ length: count }, (_, i) => ({
@@ -108,6 +114,42 @@ describe("fetchCommitEvents — bounded repo enumeration", () => {
     });
 
     expect(oc.listCommitsCalls).toBeLessThan(10);
+    expect(result.truncated).toBe(true);
+  });
+});
+
+// The public /u/<user> path (fetchPublicActivity) has the same two failure
+// modes as the signed-in fetch: it enumerated every owned repo eagerly and had
+// no wall-clock bound, so a heavy account (e.g. torvalds) hung past the render
+// timeout instead of returning a partial result.
+describe("fetchPublicActivity — bounded enumeration and budget", () => {
+  beforeEach(() => {
+    oc.pagesPulled = 0;
+    oc.listCommitsCalls = 0;
+    oc.clock = 0;
+    oc.pages = [];
+  });
+
+  it("stops paging once it has enough recently-pushed repos", async () => {
+    const now = new Date().toISOString();
+    oc.pages = Array.from({ length: 5 }, () => repoPage(100, now));
+
+    await fetchPublicActivity("me", { concurrency: 1 });
+
+    expect(oc.pagesPulled).toBeLessThanOrEqual(2);
+  });
+
+  it("stops fetching commits when the wall-clock budget is exhausted", async () => {
+    const now = new Date().toISOString();
+    oc.pages = [repoPage(50, now)]; // more than the public maxRepos cap
+
+    const result = await fetchPublicActivity("me", {
+      concurrency: 1,
+      budgetMs: 150,
+      now: () => oc.clock,
+    });
+
+    expect(oc.listCommitsCalls).toBeLessThan(40);
     expect(result.truncated).toBe(true);
   });
 });
