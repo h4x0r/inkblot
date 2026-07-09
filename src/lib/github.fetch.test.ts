@@ -78,7 +78,7 @@ vi.mock("@octokit/rest", () => {
               defaultBranchRef: {
                 target: {
                   history: {
-                    nodes: oc.commitsPerRepo.map((d) => ({ committedDate: d })),
+                    nodes: oc.commitsPerRepo.map((d) => ({ authoredDate: d })),
                     pageInfo: { hasNextPage: false, endCursor: null },
                   },
                 },

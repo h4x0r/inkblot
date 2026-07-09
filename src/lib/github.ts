@@ -82,7 +82,7 @@ interface RepoHistory {
   defaultBranchRef: {
     target: {
       history: {
-        nodes: { committedDate: string }[];
+        nodes: { authoredDate: string }[];
         pageInfo: { hasNextPage: boolean; endCursor: string | null };
       };
     } | null;
@@ -96,7 +96,7 @@ const HISTORY_BATCH = 15;
 
 /**
  * Fetch authored commits for `refs` via batched GraphQL `history` queries — many
- * repos per request, full `committedDate` timestamps, every page of each repo.
+ * repos per request, full `authoredDate` timestamps, every page of each repo.
  * Returns `truncated` when the commit cap or the wall-clock deadline stopped it
  * before every repo was fully paged. The `author: { id }` filter matches REST's
  * author matching (verified at commit-count parity on real accounts).
@@ -136,7 +136,7 @@ async function fetchAuthoredCommits(
         `r${i}: repository(owner: $o${i}, name: $n${i}) { ` +
           `defaultBranchRef { target { ... on Commit { ` +
           `history(first: 100, since: $since, author: { id: $aid }, after: $a${i}) { ` +
-          `nodes { committedDate } pageInfo { hasNextPage endCursor } } } } } }`,
+          `nodes { authoredDate } pageInfo { hasNextPage endCursor } } } } } }`,
       );
     });
     const query = `query (${decls.join(", ")}) { ${fields.join(" ")} }`;
@@ -162,7 +162,7 @@ async function fetchAuthoredCommits(
         return;
       }
       for (const node of h.nodes) {
-        const ts = Date.parse(node.committedDate);
+        const ts = Date.parse(node.authoredDate);
         if (!Number.isNaN(ts)) events.push({ repo: t.ref.label, ts });
       }
       if (h.pageInfo.hasNextPage) t.cursor = h.pageInfo.endCursor;
