@@ -59,7 +59,7 @@ test("public explorer: renders persona, chart, and controls", async ({
   await page.goto("/u/testuser");
 
   // persona badge from the mocked data
-  await expect(page.getByText("Night Owl")).toBeVisible();
+  await expect(page.getByText("Around the Clock")).toBeVisible();
   // the streamgraph image rendered from the mocked /api/render
   await expect(page.getByRole("img", { name: /streamgraph/i })).toBeVisible();
   // the time controls are present
@@ -87,7 +87,7 @@ test("public explorer: narrowing the time range writes from/to to the URL", asyn
 }) => {
   await mockInkblotApi(page);
   await page.goto("/u/testuser");
-  await expect(page.getByText("Night Owl")).toBeVisible();
+  await expect(page.getByText("Around the Clock")).toBeVisible();
 
   // set an explicit From earlier than the default window (bin 40 -> 1970 epoch)
   await page.getByLabel("From").fill("1970-01-01T05:00");

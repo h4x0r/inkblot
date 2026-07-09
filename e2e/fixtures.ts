@@ -9,9 +9,9 @@ export const CANNED_ACTIVITY = {
   empty: false,
   truncated: false,
   persona: {
-    persona: "Night Owl",
-    emoji: "🌙",
-    superlative: "70% of commits after midnight",
+    persona: "Around the Clock",
+    emoji: "🌍",
+    superlative: "active across 20 of 24 hours — no fixed schedule",
   },
   lookbackDays: 365,
   start: 0,

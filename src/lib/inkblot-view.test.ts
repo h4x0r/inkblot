@@ -144,8 +144,8 @@ describe("buildRenderPayload", () => {
     const d = view();
     const payload = buildRenderPayload(d, ["alpha"], [10, 20], {
       title: "x's GitHub Activity History",
-      subtitle: "Night Owl · most after-dark",
-      personaEmoji: "🦇",
+      subtitle: "Around the Clock · every hour",
+      personaEmoji: "🌍",
       avatarUrl: "https://github.com/x.png",
     });
     expect(payload.selected).toEqual(["alpha"]);
@@ -153,6 +153,6 @@ describe("buildRenderPayload", () => {
     expect(payload.start).toBe(0);
     expect(payload.step_hours).toBe(1);
     expect(payload.title).toBe("x's GitHub Activity History");
-    expect(payload.persona_emoji).toBe("🦇");
+    expect(payload.persona_emoji).toBe("🌍");
   });
 });
