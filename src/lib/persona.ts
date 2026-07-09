@@ -1,9 +1,16 @@
 /**
  * Classify a developer's commit pattern into a shareable persona + superlative —
- * the identity hook ("My code inkblot says I'm a Night Owl 🌙 — what's yours?").
+ * the identity hook ("My code inkblot says I'm Clockwork ⏰ — what's yours?").
  *
- * Pure and source-agnostic: it works from per-bin totals (UTC), so it's reusable
- * on the server (chart subtitle / OG card) and the client (share text).
+ * Pure and source-agnostic: it works from per-bin totals so it's reusable on the
+ * server (chart subtitle / OG card) and the client (share text).
+ *
+ * Timezone honesty: GitHub normalises commit timestamps to UTC and strips the
+ * committer's offset, so the subject's local clock is unknown — an "after
+ * midnight" / "9-to-5" label would be fiction (and doubly so for someone who
+ * changes timezone during the window). These personas therefore describe the
+ * SHAPE of the rhythm — how tight the daily window is, weekend share, single-day
+ * bursts — which is invariant to whatever timezone the subject was actually in.
  */
 export interface Persona {
   persona: string;
@@ -30,6 +37,31 @@ interface PersonaInput {
 /* v8 ignore next */
 const pct = (n: number, d: number) => (d > 0 ? Math.round((100 * n) / d) : 0);
 
+/**
+ * Tightest daily window (in whole hours, wrapping past midnight) that holds at
+ * least 80% of commits. Only the WIDTH matters, never where it sits — that is
+ * what makes it timezone-invariant: shifting every commit by a fixed offset
+ * moves the window but not its width.
+ */
+function tightestDailyWindow(
+  hourOfDay: number[],
+  sum: number,
+): { width: number; count: number } {
+  const target = 0.8 * sum;
+  let best = { width: 24, count: sum };
+  for (let s = 0; s < 24; s++) {
+    let acc = 0;
+    for (let w = 1; w <= 24; w++) {
+      acc += hourOfDay[(s + w - 1) % 24];
+      if (acc >= target) {
+        if (w < best.width) best = { width: w, count: acc };
+        break;
+      }
+    }
+  }
+  return best;
+}
+
 export function classifyPersona({
   start,
   stepHours,
@@ -39,9 +71,6 @@ export function classifyPersona({
   const hourOfDay = new Array<number>(24).fill(0);
   const dayCount = new Map<number, number>();
   let sum = 0;
-  let nightN = 0;
-  let dawnN = 0;
-  let businessN = 0;
   let weekendN = 0;
 
   for (let i = 0; i < total.length; i++) {
@@ -50,19 +79,14 @@ export function classifyPersona({
     sum += c;
     const t = start + i * stepMs;
     const d = new Date(t);
+    // Hour/day are read in UTC — the only frame we have. Personas depend on the
+    // window WIDTH and weekend share, not on which UTC hour the window sits at.
     const h = d.getUTCHours();
     const dow = d.getUTCDay(); // 0 = Sun … 6 = Sat
-    const weekend = dow === 0 || dow === 6;
-
     hourOfDay[h] += c;
-    dayCount.set(
-      Math.floor(t / DAY_MS),
-      (dayCount.get(Math.floor(t / DAY_MS)) ?? 0) + c,
-    );
-    if (weekend) weekendN += c;
-    if (h >= 22 || h <= 4) nightN += c;
-    else if (h >= 5 && h <= 8) dawnN += c;
-    else if (h >= 9 && h <= 17 && !weekend) businessN += c;
+    const day = Math.floor(t / DAY_MS);
+    dayCount.set(day, (dayCount.get(day) ?? 0) + c);
+    if (dow === 0 || dow === 6) weekendN += c;
   }
 
   if (sum === 0) {
@@ -73,35 +97,11 @@ export function classifyPersona({
     };
   }
 
-  const busiestHour = hourOfDay.indexOf(Math.max(...hourOfDay));
-  const at = `busiest at ${busiestHour}:00`;
-
-  if (nightN / sum >= 0.3) {
-    return {
-      persona: "Night Owl",
-      emoji: "🌙",
-      superlative: `${pct(nightN, sum)}% of commits after midnight · ${at}`,
-    };
-  }
   if (weekendN / sum >= 0.4) {
     return {
       persona: "Weekend Warrior",
       emoji: "🛠️",
-      superlative: `${pct(weekendN, sum)}% of commits on weekends · ${at}`,
-    };
-  }
-  if (dawnN / sum >= 0.3) {
-    return {
-      persona: "Dawn Patrol",
-      emoji: "🌅",
-      superlative: `${pct(dawnN, sum)}% of commits before 9am · ${at}`,
-    };
-  }
-  if (businessN / sum >= 0.55) {
-    return {
-      persona: "9-to-5 Machine",
-      emoji: "☕",
-      superlative: `${pct(businessN, sum)}% in business hours · ${at}`,
+      superlative: `${pct(weekendN, sum)}% of commits on weekends`,
     };
   }
 
@@ -110,12 +110,30 @@ export function classifyPersona({
     return {
       persona: "The Sprinter",
       emoji: "⚡",
-      superlative: `${pct(busiestDay, sum)}% of commits in a single day · ${at}`,
+      superlative: `${pct(busiestDay, sum)}% of commits in a single day`,
+    };
+  }
+
+  const activeHours = hourOfDay.filter((c) => c > 0).length;
+  const win = tightestDailyWindow(hourOfDay, sum);
+
+  if (win.width >= 16) {
+    return {
+      persona: "Around the Clock",
+      emoji: "🌍",
+      superlative: `commits across ${activeHours} of 24 hours — no fixed schedule`,
+    };
+  }
+  if (win.width <= 8) {
+    return {
+      persona: "Clockwork",
+      emoji: "⏰",
+      superlative: `${pct(win.count, sum)}% within a ${win.width}-hour daily window`,
     };
   }
   return {
     persona: "The Marathoner",
     emoji: "🐢",
-    superlative: `steady across ${dayCount.size} days · ${at}`,
+    superlative: `steady across ${dayCount.size} days`,
   };
 }
