@@ -17,6 +17,7 @@ const oc = vi.hoisted(() => ({
   listCommitsCalls: 0,
   graphqlHistoryCalls: 0,
   clock: 0,
+  historyQuery: "",
   commitsPerRepo: [] as string[],
   pages: [] as Array<Array<Record<string, unknown>>>,
 }));
@@ -67,6 +68,7 @@ vi.mock("@octokit/rest", () => {
         graphql: async (query: string, vars: Record<string, unknown>) => {
           if (/viewer/.test(query)) return { viewer: { id: "AUTHOR" } };
           // batched history query: one aliased repository per o{i}/n{i} var
+          oc.historyQuery = query;
           oc.graphqlHistoryCalls++;
           oc.clock += 100;
           const out: Record<string, unknown> = {};
@@ -109,6 +111,7 @@ describe("fetchCommitEvents — bounded repo enumeration", () => {
     oc.listCommitsCalls = 0;
     oc.graphqlHistoryCalls = 0;
     oc.clock = 0;
+    oc.historyQuery = "";
     oc.commitsPerRepo = [];
     oc.pages = [];
   });
@@ -136,6 +139,19 @@ describe("fetchCommitEvents — bounded repo enumeration", () => {
     expect(result.events.length).toBe(60);
     // ... but fetched in batches, not one request per repo.
     expect(oc.graphqlHistoryCalls).toBeLessThanOrEqual(2);
+  });
+
+  it("queries authoredDate (the human's commit time), not committedDate", async () => {
+    // committedDate is rewritten by rebase/amend; authoredDate is when the work
+    // was actually done — the honest signal for an activity-rhythm view.
+    const now = new Date().toISOString();
+    oc.pages = [repoPage(1, now)];
+    oc.commitsPerRepo = [now];
+
+    await fetchCommitEvents("token", "me", { concurrency: 1 });
+
+    expect(oc.historyQuery).toContain("authoredDate");
+    expect(oc.historyQuery).not.toContain("committedDate");
   });
 
   it("stops fetching commits when the wall-clock budget is exhausted", async () => {
@@ -167,6 +183,7 @@ describe("fetchPublicActivity — bounded enumeration and budget", () => {
     oc.listCommitsCalls = 0;
     oc.graphqlHistoryCalls = 0;
     oc.clock = 0;
+    oc.historyQuery = "";
     oc.commitsPerRepo = [];
     oc.pages = [];
   });
