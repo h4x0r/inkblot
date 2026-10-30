@@ -23,7 +23,7 @@ jobs:
           version: 9.15.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Lint (eslint)
@@ -51,7 +51,7 @@ jobs:
           version: 9.15.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
@@ -97,7 +97,7 @@ jobs:
           version: 9.15.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Dependency audit
